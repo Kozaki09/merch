@@ -25,6 +25,7 @@ export default function App() {
   // Cropper State
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [fitZoom, setFitZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
@@ -541,16 +542,22 @@ export default function App() {
                   {hasVariants && (
                     <div>
                       <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Size / Variant</label>
-                      <select
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 appearance-none"
-                        value={customVarId || ''}
-                        onChange={e => setCustomVarId(Number(e.target.value))}
-                      >
-                        <option value="" disabled>Select Option...</option>
+                      <div className="flex flex-col gap-2">
                         {cat?.variants?.map((v: any) => (
-                          <option key={v.id} value={v.id}>{v.name} - {formatPrice(v.price)}</option>
+                          <button
+                            key={v.id}
+                            onClick={() => setCustomVarId(v.id)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all duration-150 text-sm font-semibold ${
+                              customVarId === v.id
+                                ? 'bg-purple-500/15 border-purple-500/60 text-purple-300'
+                                : 'bg-zinc-950 border-white/10 hover:border-purple-500/40 hover:bg-purple-500/5 text-white'
+                            }`}
+                          >
+                            <span>{v.name}</span>
+                            <span className={`text-xs font-bold ${customVarId === v.id ? 'text-purple-400' : 'text-zinc-500'}`}>{formatPrice(v.price)}</span>
+                          </button>
                         ))}
-                      </select>
+                      </div>
                     </div>
                   )}
 
@@ -620,7 +627,15 @@ export default function App() {
                             if (cat?.requiresCircularCrop) {
                               const reader = new FileReader();
                               reader.onload = () => {
-                                setImageSrc(reader.result as string);
+                                const src = reader.result as string;
+                                // Compute fitZoom: ratio to fit entire image inside circle
+                                const img = new Image();
+                                img.onload = () => {
+                                  const ratio = Math.min(img.naturalWidth, img.naturalHeight) / Math.max(img.naturalWidth, img.naturalHeight);
+                                  setFitZoom(ratio);
+                                };
+                                img.src = src;
+                                setImageSrc(src);
                                 setIsCropping(true);
                                 setCrop({ x: 0, y: 0 });
                                 setZoom(1);
@@ -635,6 +650,17 @@ export default function App() {
                       />
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50"
+                    value={customQty}
+                    onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  />
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -726,6 +752,27 @@ export default function App() {
               )}
             </div>
             <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-4">
+              {/* Quick action buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setCrop({ x: 0, y: 0 }); setSnapped({ x: true, y: true }); }}
+                  className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition-colors"
+                >
+                  ⊕ Center
+                </button>
+                <button
+                  onClick={() => { setZoom(fitZoom); setCrop({ x: 0, y: 0 }); setSnapped({ x: true, y: true }); }}
+                  className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition-colors"
+                >
+                  ⤢ Fit
+                </button>
+                <button
+                  onClick={() => { setZoom(1); setCrop({ x: 0, y: 0 }); setSnapped({ x: true, y: true }); }}
+                  className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition-colors"
+                >
+                  ↺ Reset
+                </button>
+              </div>
               <div className="flex items-center gap-4 px-2">
                 <span className="text-zinc-400 font-medium text-xs uppercase tracking-wider">Zoom</span>
                 <input
