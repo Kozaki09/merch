@@ -27,6 +27,18 @@ export default function App() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
+  const [snapped, setSnapped] = useState({ x: false, y: false });
+
+  const SNAP_THRESHOLD = 1.5;
+  const handleCropChange = (newCrop: { x: number; y: number }) => {
+    const snapX = Math.abs(newCrop.x) < SNAP_THRESHOLD;
+    const snapY = Math.abs(newCrop.y) < SNAP_THRESHOLD;
+    setSnapped({ x: snapX, y: snapY });
+    setCrop({
+      x: snapX ? 0 : newCrop.x,
+      y: snapY ? 0 : newCrop.y,
+    });
+  };
   
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: api.getCategories });
   const { data: items = [] } = useQuery({ queryKey: ['items'], queryFn: api.getItems });
@@ -653,10 +665,17 @@ export default function App() {
                 cropShape="round"
                 showGrid={false}
                 restrictPosition={false}
-                onCropChange={setCrop}
+                onCropChange={handleCropChange}
                 onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
                 onZoomChange={setZoom}
               />
+              {/* Snap guide lines */}
+              {snapped.y && (
+                <div className="absolute inset-x-0 top-1/2 -translate-y-px h-px bg-emerald-400/70 pointer-events-none z-10 transition-opacity" />
+              )}
+              {snapped.x && (
+                <div className="absolute inset-y-0 left-1/2 -translate-x-px w-px bg-emerald-400/70 pointer-events-none z-10 transition-opacity" />
+              )}
             </div>
             <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-4">
               <div className="flex items-center gap-4 px-2">
