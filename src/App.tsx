@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getImageUrl } from './lib/api';
 import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown } from 'lucide-react';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from './lib/cropImage';
 import './App.css';
 
 export default function App() {
@@ -18,6 +20,13 @@ export default function App() {
   const [customQty, setCustomQty] = useState<number>(1);
   const [customImageFile, setCustomImageFile] = useState<File | null>(null);
   const [isAddingCustom, setIsAddingCustom] = useState(false);
+  
+  // Cropper State
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
   
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: api.getCategories });
   const { data: items = [] } = useQuery({ queryKey: ['items'], queryFn: api.getItems });
@@ -514,16 +523,50 @@ export default function App() {
               <div>
                 <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Design Image (Optional)</label>
                 <div className="relative group">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="w-full text-sm text-zinc-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-zinc-800 file:text-purple-400 hover:file:bg-zinc-700 hover:file:text-purple-300 transition-all cursor-pointer bg-zinc-950 border border-white/10 rounded-xl"
-                    onChange={e => {
-                      if (e.target.files && e.target.files[0]) {
-                        setCustomImageFile(e.target.files[0]);
-                      }
-                    }}
-                  />
+                  {customImageFile ? (
+                    <div className="flex items-center gap-3 bg-zinc-950 border border-white/10 rounded-xl p-3">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10">
+                        <img src={URL.createObjectURL(customImageFile)} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white truncate font-medium">{customImageFile.name}</p>
+                        <p className="text-[10px] text-zinc-500">Ready for upload</p>
+                      </div>
+                      <button 
+                        onClick={() => setCustomImageFile(null)}
+                        className="p-2 text-zinc-500 hover:text-red-400 bg-white/5 rounded-lg hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="w-full text-sm text-zinc-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-zinc-800 file:text-purple-400 hover:file:bg-zinc-700 hover:file:text-purple-300 transition-all cursor-pointer bg-zinc-950 border border-white/10 rounded-xl"
+                      onChange={e => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          const cat = categories.find((c: any) => c.id === customCatId);
+                          if (cat?.requiresCircularCrop) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setImageSrc(reader.result as string);
+                              setIsCropping(true);
+                              // Reset crop
+                              setCrop({ x: 0, y: 0 });
+                              setZoom(1);
+                            };
+                            reader.readAsDataURL(file);
+                            // Clear input
+                            e.target.value = '';
+                          } else {
+                            setCustomImageFile(file);
+                          }
+                        }
+                      }}
+                    />
+                  )}
                 </div>
               </div>
               
@@ -587,6 +630,59 @@ export default function App() {
                   {isAddingCustom ? 'Processing...' : 'Add Request'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Image Cropper Modal */}
+      {isCropping && imageSrc && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsCropping(false)}></div>
+          <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl relative z-10 h-[75vh]">
+            <div className="p-5 border-b border-white/10 shrink-0 bg-zinc-900/50">
+              <h3 className="text-xl font-black text-white">Crop Design</h3>
+              <p className="text-sm text-zinc-400 mt-1">Position your image within the circular guide to ensure it looks perfect on a pin.</p>
+            </div>
+            <div className="relative flex-1 w-full bg-black">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                onZoomChange={setZoom}
+              />
+            </div>
+            <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex gap-3">
+              <button 
+                onClick={() => {
+                  setIsCropping(false);
+                  setImageSrc(null);
+                }} 
+                className="flex-1 px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-colors text-sm font-bold"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  if (croppedAreaPixels && imageSrc) {
+                    try {
+                      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, 'custom-crop.jpeg');
+                      setCustomImageFile(croppedFile);
+                      setIsCropping(false);
+                    } catch (e) {
+                      console.error(e);
+                      alert('Failed to crop image');
+                    }
+                  }
+                }}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all border border-white/10"
+              >
+                Confirm Crop
+              </button>
             </div>
           </div>
         </div>
