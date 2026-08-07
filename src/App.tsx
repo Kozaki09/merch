@@ -648,9 +648,11 @@ export default function App() {
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
+                minZoom={0.1}
                 aspect={1}
                 cropShape="round"
                 showGrid={false}
+                restrictPosition={false}
                 onCropChange={setCrop}
                 onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
                 onZoomChange={setZoom}
@@ -662,7 +664,7 @@ export default function App() {
                 <input
                   type="range"
                   value={zoom}
-                  min={1}
+                  min={0.1}
                   max={3}
                   step={0.01}
                   onChange={(e) => setZoom(Number(e.target.value))}
