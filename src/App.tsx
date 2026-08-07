@@ -15,6 +15,7 @@ export default function App() {
   const [selectedVariants, setSelectedVariants] = useState<Record<number, number>>({});
   
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [customStep, setCustomStep] = useState<1 | 2 | 3>(1);
   const [customCatId, setCustomCatId] = useState<number | null>(null);
   const [customVarId, setCustomVarId] = useState<number | null>(null);
   const [customQty, setCustomQty] = useState<number>(1);
@@ -483,169 +484,216 @@ export default function App() {
             <div className="w-12 h-12 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center mb-4 border border-purple-500/20">
               <Plus size={24} strokeWidth={3} />
             </div>
-            <h2 className="text-2xl font-black text-white mb-6 tracking-tight">Custom Request</h2>
-            
-            <div className="flex flex-col gap-5">
-              <div>
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Category</label>
-                <select 
-                  className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 appearance-none"
-                  value={customCatId || ''}
-                  onChange={e => {
-                    setCustomCatId(Number(e.target.value));
-                    setCustomVarId(null);
-                  }}
-                >
-                  <option value="" disabled>Select Item Type...</option>
-                  {categories.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {(categories.find((c: any) => c.id === customCatId)?.variants?.length ?? 0) > 0 && (
-                <div>
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Size / Variant</label>
-                  <select 
-                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 appearance-none"
-                    value={customVarId || ''}
-                    onChange={e => setCustomVarId(Number(e.target.value))}
-                  >
-                    <option value="" disabled>Select Option...</option>
-                    {categories.find((c: any) => c.id === customCatId)?.variants?.map((v: any) => (
-                      <option key={v.id} value={v.id}>{v.name} - {formatPrice(v.price)}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50"
-                    value={customQty}
-                    onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Design Image (Optional)</label>
-                <div className="relative group">
-                  {customImageFile ? (
-                    <div className="flex items-center gap-3 bg-zinc-950 border border-white/10 rounded-xl p-3">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10">
-                        <img src={URL.createObjectURL(customImageFile)} alt="Preview" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-white truncate font-medium">{customImageFile.name}</p>
-                        <p className="text-[10px] text-zinc-500">Ready for upload</p>
-                      </div>
-                      <button 
-                        onClick={() => setCustomImageFile(null)}
-                        className="p-2 text-zinc-500 hover:text-red-400 bg-white/5 rounded-lg hover:bg-red-500/10 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="w-full text-sm text-zinc-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-zinc-800 file:text-purple-400 hover:file:bg-zinc-700 hover:file:text-purple-300 transition-all cursor-pointer bg-zinc-950 border border-white/10 rounded-xl"
-                      onChange={e => {
-                        if (e.target.files && e.target.files[0]) {
-                          const file = e.target.files[0];
-                          const cat = categories.find((c: any) => c.id === customCatId);
-                          if (cat?.requiresCircularCrop) {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              setImageSrc(reader.result as string);
-                              setIsCropping(true);
-                              // Reset crop
-                              setCrop({ x: 0, y: 0 });
-                              setZoom(1);
-                            };
-                            reader.readAsDataURL(file);
-                            // Clear input
-                            e.target.value = '';
-                          } else {
-                            setCustomImageFile(file);
-                          }
-                        }
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex gap-3 mt-4 pt-4 border-t border-white/10">
-                <button 
-                  onClick={() => {
-                    setIsCustomModalOpen(false);
-                    setCustomImageFile(null);
-                  }} 
-                  className="flex-1 px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-colors text-sm font-bold"
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 mb-5">
+              {([1, 2, 3] as const).map((s) => (
+                <div
+                  key={s}
+                  className={`h-1.5 rounded-full flex-1 transition-all duration-300 ${customStep >= s ? 'bg-purple-500' : 'bg-zinc-700'}`}
+                />
+              ))}
+            </div>
+
+            <h2 className="text-2xl font-black text-white mb-1 tracking-tight">Custom Request</h2>
+            <p className="text-sm text-zinc-500 mb-6">
+              {customStep === 1 && 'What type of item do you want?'}
+              {customStep === 2 && 'Choose your options.'}
+              {customStep === 3 && 'Upload your design image.'}
+            </p>
+
+            {/* Step 1: Category */}
+            {customStep === 1 && (
+              <div className="flex flex-col gap-3">
+                {categories.map((c: any) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setCustomCatId(c.id);
+                      setCustomVarId(null);
+                      setCustomStep(2);
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border text-left transition-all duration-150 bg-zinc-950 border-white/10 hover:border-purple-500/50 hover:bg-purple-500/5 text-white font-semibold text-sm"
+                  >
+                    {c.name}
+                    <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setIsCustomModalOpen(false)}
+                  className="w-full px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-colors text-sm font-bold mt-2"
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={async () => {
-                    if (!customCatId) return;
-                    const customItem = items.find((i: any) => i.categoryId === customCatId && i.isCustom);
-                    if (customItem) {
-                      const cat = categories.find((c: any) => c.id === customCatId);
-                      const hasVariants = cat && cat.variants && cat.variants.length > 0;
-                      if (hasVariants && !customVarId) {
-                        alert('Please select a variant');
-                        return;
-                      }
-                      
-                      setIsAddingCustom(true);
-                      let uploadedImageUrl: string | undefined;
-                      try {
-                        if (customImageFile) {
-                          const res = await api.uploadImage(customImageFile);
-                          uploadedImageUrl = res.imageUrl;
-                        }
-                      } catch (e: any) {
-                        alert('Failed to upload image: ' + e.message);
-                        setIsAddingCustom(false);
-                        return;
-                      }
-                      
-                      setCart(prev => {
-                        const existing = prev.find(c => c.itemId === customItem.id && c.variantId === (customVarId || null));
-                        if (existing) {
-                          return prev.map(c => (c.itemId === customItem.id && c.variantId === (customVarId || null)) ? { ...c, quantity: c.quantity + customQty, customImage: uploadedImageUrl || c.customImage } : c);
-                        }
-                        return [...prev, { itemId: customItem.id, variantId: customVarId || null, quantity: customQty, deductFromStock: false, customImage: uploadedImageUrl }];
-                      });
-                      
-                      setIsCustomModalOpen(false);
-                      setCustomCatId(null);
-                      setCustomVarId(null);
-                      setCustomQty(1);
-                      setCustomImageFile(null);
-                      setIsAddingCustom(false);
-                      setIsCartExpanded(true);
-                    } else {
-                      alert('Custom item not found for this category');
-                    }
-                  }}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2 border border-white/10"
-                  disabled={!customCatId || isAddingCustom}
-                >
-                  {isAddingCustom ? 'Processing...' : 'Add Request'}
-                </button>
               </div>
-            </div>
+            )}
+
+            {/* Step 2: Variant + Quantity */}
+            {customStep === 2 && (() => {
+              const cat = categories.find((c: any) => c.id === customCatId);
+              const hasVariants = (cat?.variants?.length ?? 0) > 0;
+              return (
+                <div className="flex flex-col gap-5">
+                  <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider -mb-2">
+                    {cat?.name}
+                  </div>
+
+                  {hasVariants && (
+                    <div>
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Size / Variant</label>
+                      <select
+                        className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 appearance-none"
+                        value={customVarId || ''}
+                        onChange={e => setCustomVarId(Number(e.target.value))}
+                      >
+                        <option value="" disabled>Select Option...</option>
+                        {cat?.variants?.map((v: any) => (
+                          <option key={v.id} value={v.id}>{v.name} - {formatPrice(v.price)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50"
+                      value={customQty}
+                      onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setCustomStep(1)}
+                      className="flex-1 px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-colors text-sm font-bold"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (hasVariants && !customVarId) { alert('Please select a variant'); return; }
+                        setCustomStep(3);
+                      }}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all border border-white/10"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Step 3: Image */}
+            {customStep === 3 && (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Design Image (Optional)</label>
+                  <div className="relative group">
+                    {customImageFile ? (
+                      <div className="flex items-center gap-3 bg-zinc-950 border border-white/10 rounded-xl p-3">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10">
+                          <img src={URL.createObjectURL(customImageFile)} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-white truncate font-medium">{customImageFile.name}</p>
+                          <p className="text-[10px] text-zinc-500">Ready for upload</p>
+                        </div>
+                        <button
+                          onClick={() => setCustomImageFile(null)}
+                          className="p-2 text-zinc-500 hover:text-red-400 bg-white/5 rounded-lg hover:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="w-full text-sm text-zinc-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-zinc-800 file:text-purple-400 hover:file:bg-zinc-700 hover:file:text-purple-300 transition-all cursor-pointer bg-zinc-950 border border-white/10 rounded-xl"
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            const cat = categories.find((c: any) => c.id === customCatId);
+                            if (cat?.requiresCircularCrop) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setImageSrc(reader.result as string);
+                                setIsCropping(true);
+                                setCrop({ x: 0, y: 0 });
+                                setZoom(1);
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = '';
+                            } else {
+                              setCustomImageFile(file);
+                            }
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setCustomStep(2)}
+                    className="flex-1 px-4 py-3 rounded-xl text-zinc-400 hover:bg-white/5 hover:text-white transition-colors text-sm font-bold"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!customCatId) return;
+                      const customItem = items.find((i: any) => i.categoryId === customCatId && i.isCustom);
+                      if (customItem) {
+                        setIsAddingCustom(true);
+                        let uploadedImageUrl: string | undefined;
+                        try {
+                          if (customImageFile) {
+                            const res = await api.uploadImage(customImageFile);
+                            uploadedImageUrl = res.imageUrl;
+                          }
+                        } catch (e: any) {
+                          alert('Failed to upload image: ' + e.message);
+                          setIsAddingCustom(false);
+                          return;
+                        }
+                        setCart(prev => {
+                          const existing = prev.find(c => c.itemId === customItem.id && c.variantId === (customVarId || null));
+                          if (existing) {
+                            return prev.map(c => (c.itemId === customItem.id && c.variantId === (customVarId || null)) ? { ...c, quantity: c.quantity + customQty, customImage: uploadedImageUrl || c.customImage } : c);
+                          }
+                          return [...prev, { itemId: customItem.id, variantId: customVarId || null, quantity: customQty, deductFromStock: false, customImage: uploadedImageUrl }];
+                        });
+                        setIsCustomModalOpen(false);
+                        setCustomStep(1);
+                        setCustomCatId(null);
+                        setCustomVarId(null);
+                        setCustomQty(1);
+                        setCustomImageFile(null);
+                        setIsAddingCustom(false);
+                        setIsCartExpanded(true);
+                      } else {
+                        alert('Custom item not found for this category');
+                      }
+                    }}
+                    disabled={isAddingCustom}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2 border border-white/10"
+                  >
+                    {isAddingCustom ? 'Processing...' : 'Add to Cart'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
+
+
+
       {/* Image Cropper Modal */}
       {isCropping && imageSrc && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
