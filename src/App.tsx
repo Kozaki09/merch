@@ -263,7 +263,34 @@ export default function App() {
           </div>
 
         {/* Item Grid */}
-        <div className="flex-1 min-h-0 overflow-y-auto pb-32 md:pb-8 pr-2 no-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-32 md:pb-8 pr-2 no-scrollbar relative">
+          
+          {/* Floating Toasts (Upper Right relative to item list container) */}
+          <div className="sticky top-2 z-50 ml-auto flex flex-col gap-2 max-w-xs sm:max-w-sm w-full pointer-events-none mb-2">
+            {toasts.map(toast => (
+              <div
+                key={toast.id}
+                className={`pointer-events-auto flex items-center gap-3 p-3.5 rounded-2xl border shadow-2xl backdrop-blur-md animate-in slide-in-from-top-3 duration-200 text-xs sm:text-sm font-medium ${
+                  toast.type === 'success'
+                    ? 'bg-emerald-950/95 border-emerald-500/40 text-emerald-200'
+                    : toast.type === 'error'
+                    ? 'bg-red-950/95 border-red-500/40 text-red-200'
+                    : 'bg-zinc-900/95 border-white/15 text-zinc-200'
+                }`}
+              >
+                {toast.type === 'success' && <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />}
+                {toast.type === 'error' && <AlertCircle size={18} className="text-red-400 shrink-0" />}
+                <span className="flex-1 leading-snug">{toast.message}</span>
+                <button
+                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
             {filteredItems.map(item => {
               const defaultVid = item.variants && item.variants.length > 0
@@ -874,31 +901,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating Toasts */}
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
-        {toasts.map(toast => (
-          <div
-            key={toast.id}
-            className={`pointer-events-auto flex items-center gap-3 p-4 rounded-2xl border shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200 text-sm font-medium ${
-              toast.type === 'success'
-                ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-200'
-                : toast.type === 'error'
-                ? 'bg-red-950/90 border-red-500/30 text-red-200'
-                : 'bg-zinc-900/90 border-white/10 text-zinc-200'
-            }`}
-          >
-            {toast.type === 'success' && <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />}
-            {toast.type === 'error' && <AlertCircle size={18} className="text-red-400 shrink-0" />}
-            <span className="flex-1 text-xs sm:text-sm">{toast.message}</span>
-            <button
-              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors shrink-0"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
       
     </div>
   );
