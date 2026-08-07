@@ -363,37 +363,37 @@ export default function App() {
 
       {/* Cart Sidebar (Collapsible) */}
       <div 
-        className={`absolute md:fixed bg-zinc-900/95 backdrop-blur-2xl border-white/10 flex flex-col z-40 shadow-[0_-20px_60px_rgba(0,0,0,0.8)] md:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+        className={`fixed bg-zinc-900/95 backdrop-blur-2xl border-white/10 flex flex-col z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] md:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
           isCartExpanded 
             ? 'right-0 bottom-0 w-full md:w-96 h-[85dvh] md:h-[calc(100dvh-2rem)] md:top-4 md:right-4 border-t md:border rounded-t-3xl md:rounded-3xl' 
-            : 'right-0 bottom-0 md:right-6 md:bottom-6 w-full md:w-[340px] h-[88px] md:h-16 border-t md:border rounded-t-3xl md:rounded-2xl'
+            : 'right-0 bottom-0 md:right-6 md:bottom-6 w-full md:w-[340px] border-t md:border rounded-t-3xl md:rounded-2xl'
         }`}
       >
         {/* Collapsed Preview Tab Header */}
         <button 
           onClick={() => setIsCartExpanded(!isCartExpanded)}
-          className={`flex items-center justify-between p-4 md:p-5 w-full cursor-pointer hover:bg-white/5 transition-colors shrink-0 outline-none ${isCartExpanded ? 'border-b border-white/10' : ''}`}
+          className={`flex items-center justify-between px-5 py-3.5 md:py-4 w-full cursor-pointer hover:bg-white/5 transition-colors shrink-0 outline-none ${isCartExpanded ? 'border-b border-white/10' : ''}`}
         >
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="bg-blue-600/20 text-blue-400 p-2 rounded-xl">
-                <ShoppingCart size={22} strokeWidth={2.5} />
+          <div className="flex items-center gap-3.5">
+            <div className="relative shrink-0 flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center">
+                <ShoppingCart size={20} strokeWidth={2.5} />
               </div>
               {totalItems > 0 && (
-                <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg">
+                <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[10px] font-black min-w-5 h-5 px-1 flex items-center justify-center rounded-full shadow-md border-2 border-zinc-900 leading-none">
                   {totalItems}
                 </div>
               )}
             </div>
             {!isCartExpanded && (
-              <div className="flex flex-col items-start md:flex-row md:items-center md:gap-2">
-                <span className="font-black text-lg text-white tracking-tight">{totalPrice}</span>
+              <div className="flex items-center">
+                <span className="font-black text-lg text-white tracking-tight leading-none">{totalPrice}</span>
               </div>
             )}
-            {isCartExpanded && <h2 className="text-lg font-black text-white tracking-tight">Your Preorder</h2>}
+            {isCartExpanded && <h2 className="text-lg font-black text-white tracking-tight leading-none">Your Preorder</h2>}
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {isCartExpanded && cart.length > 0 && (
               <span 
                 onClick={(e) => { e.stopPropagation(); setCart([]); setIsCartExpanded(false); }}
@@ -402,8 +402,8 @@ export default function App() {
                 Clear All
               </span>
             )}
-            <div className="text-zinc-500">
-              {isCartExpanded ? <ChevronDown size={22} /> : <ChevronUp size={22} />}
+            <div className="text-zinc-400 flex items-center justify-center">
+              {isCartExpanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
             </div>
           </div>
         </button>
