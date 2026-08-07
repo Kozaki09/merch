@@ -21,7 +21,8 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(`${API_URL}/api${endpoint}`, {
+  const cleanApiUrl = API_URL.replace(/\/+$/, '');
+  const res = await fetch(`${cleanApiUrl}/api${endpoint}`, {
     ...options,
     headers,
   });
@@ -43,7 +44,7 @@ export const api = {
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append('image', file);
-    return fetch(`${API_URL}/api/upload`, {
+    return fetch(`${API_URL.replace(/\/+$/, '')}/api/upload`, {
       method: 'POST',
       body: formData,
     }).then(res => {
@@ -53,4 +54,4 @@ export const api = {
   },
 };
 
-export const getImageUrl = (path: string) => `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
+export const getImageUrl = (path: string) => `${API_URL.replace(/\/+$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
