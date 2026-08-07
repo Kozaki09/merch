@@ -10,7 +10,7 @@ export const createImage = (url: string): Promise<HTMLImageElement> =>
 export async function getCroppedImg(
   imageSrc: string,
   pixelCrop: { x: number; y: number; width: number; height: number },
-  fileName = 'cropped.jpeg'
+  fileName = 'custom-crop.png'
 ): Promise<File> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
@@ -19,6 +19,10 @@ export async function getCroppedImg(
   if (!ctx) {
     throw new Error('No 2d context');
   }
+
+  // Enable maximum quality smoothing for resampling
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
@@ -45,7 +49,7 @@ export async function getCroppedImg(
         reject(new Error('Canvas is empty'));
         return;
       }
-      resolve(new File([blob], fileName, { type: 'image/jpeg' }));
-    }, 'image/jpeg');
+      resolve(new File([blob], fileName, { type: 'image/png' }));
+    }, 'image/png');
   });
 }
