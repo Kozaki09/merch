@@ -265,8 +265,8 @@ export default function App() {
         {/* Item Grid */}
         <div className="flex-1 min-h-0 overflow-y-auto pb-32 md:pb-8 pr-2 no-scrollbar relative">
           
-          {/* Floating Toasts (Upper Right relative to item list container) */}
-          <div className="sticky top-2 z-50 ml-auto flex flex-col gap-2 max-w-xs sm:max-w-sm w-full pointer-events-none mb-2">
+          {/* Floating Toasts (Absolute Upper Right overlay on top of items) */}
+          <div className="absolute top-2 right-2 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm w-full pointer-events-none">
             {toasts.map(toast => (
               <div
                 key={toast.id}
