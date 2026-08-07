@@ -7,7 +7,7 @@ import { getCroppedImg } from './lib/cropImage';
 import './App.css';
 
 export default function App() {
-  const [cart, setCart] = useState<{ itemId: number; variantId?: number | null; quantity: number; deductFromStock?: boolean; customImage?: string }[]>([]);
+  const [cart, setCart] = useState<{ cartId: string; itemId: number; variantId?: number | null; quantity: number; deductFromStock?: boolean; customImage?: string }[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   const [isPrepaid, setIsPrepaid] = useState(false);
@@ -118,18 +118,18 @@ export default function App() {
           return c;
         });
       }
-      return [...prev, { itemId, variantId, quantity: 1, deductFromStock: stock > 0 && !item.isCustom }];
+      return [...prev, { cartId: `${itemId}-${variantId}-${Date.now()}`, itemId, variantId, quantity: 1, deductFromStock: stock > 0 && !item.isCustom }];
     });
   };
 
-  const removeFromCart = (itemId: number, variantId?: number | null) => {
-    setCart(prev => prev.filter(c => !(c.itemId === itemId && c.variantId === variantId)));
+  const removeFromCart = (cartId: string) => {
+    setCart(prev => prev.filter(c => c.cartId !== cartId));
     if (cart.length === 1) setIsCartExpanded(false);
   };
 
-  const adjustQuantity = (itemId: number, variantId: number | null | undefined, delta: number) => {
+  const adjustQuantity = (cartId: string, delta: number) => {
     setCart(prev => prev.map(c => {
-      if (c.itemId === itemId && c.variantId === variantId) {
+      if (c.cartId === cartId) {
         const newQ = c.quantity + delta;
         return newQ > 0 ? { ...c, quantity: newQ } : c;
       }
@@ -394,7 +394,7 @@ export default function App() {
                 }
                 
                 return (
-                  <div key={`${item.id}-${cItem.variantId}`} className="flex flex-col bg-zinc-950/50 p-4 rounded-2xl border border-white/5 gap-3 group">
+                  <div key={cItem.cartId} className="flex flex-col bg-zinc-950/50 p-4 rounded-2xl border border-white/5 gap-3 group">
                     <div className="flex justify-between items-start">
                       <div className="flex-1 pr-3">
                         <div className="flex items-start gap-3 mb-1">
@@ -414,11 +414,11 @@ export default function App() {
                     
                     <div className="flex items-center justify-between pt-2">
                       <div className="flex items-center bg-zinc-900 rounded-xl p-1 border border-white/5 shadow-inner">
-                        <button onClick={() => adjustQuantity(item.id, cItem.variantId, -1)} className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-zinc-800 transition-colors"><Minus size={14} strokeWidth={3}/></button>
+                        <button onClick={() => adjustQuantity(cItem.cartId, -1)} className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-zinc-800 transition-colors"><Minus size={14} strokeWidth={3}/></button>
                         <span className="text-sm font-black w-8 text-center text-white">{cItem.quantity}</span>
-                        <button onClick={() => adjustQuantity(item.id, cItem.variantId, 1)} className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-zinc-800 transition-colors"><Plus size={14} strokeWidth={3}/></button>
+                        <button onClick={() => adjustQuantity(cItem.cartId, 1)} className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-zinc-800 transition-colors"><Plus size={14} strokeWidth={3}/></button>
                       </div>
-                      <button onClick={() => removeFromCart(item.id, cItem.variantId)} className="text-zinc-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors flex items-center gap-1 text-xs font-bold">
+                      <button onClick={() => removeFromCart(cItem.cartId)} className="text-zinc-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors flex items-center gap-1 text-xs font-bold">
                         <Trash2 size={14}/> Remove
                       </button>
                     </div>
@@ -689,11 +689,8 @@ export default function App() {
                           return;
                         }
                         setCart(prev => {
-                          const existing = prev.find(c => c.itemId === customItem.id && c.variantId === (customVarId || null));
-                          if (existing) {
-                            return prev.map(c => (c.itemId === customItem.id && c.variantId === (customVarId || null)) ? { ...c, quantity: c.quantity + customQty, customImage: uploadedImageUrl || c.customImage } : c);
-                          }
-                          return [...prev, { itemId: customItem.id, variantId: customVarId || null, quantity: customQty, deductFromStock: false, customImage: uploadedImageUrl }];
+                          // Custom items are ALWAYS added as a new line item (each has a unique image)
+                          return [...prev, { cartId: `custom-${customItem.id}-${customVarId || 0}-${Date.now()}`, itemId: customItem.id, variantId: customVarId || null, quantity: customQty, deductFromStock: false, customImage: uploadedImageUrl }];
                         });
                         setIsCustomModalOpen(false);
                         setCustomStep(1);
