@@ -366,13 +366,15 @@ export default function App() {
         className={`fixed bg-zinc-900/95 backdrop-blur-2xl border-white/10 flex flex-col z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] md:shadow-[-20px_0_60px_rgba(0,0,0,0.5)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
           isCartExpanded 
             ? 'right-0 bottom-0 w-full md:w-96 h-[85dvh] md:h-[calc(100dvh-2rem)] md:top-4 md:right-4 border-t md:border rounded-t-3xl md:rounded-3xl' 
-            : 'right-0 bottom-0 md:right-6 md:bottom-6 w-full md:w-[340px] border-t md:border rounded-t-3xl md:rounded-2xl'
+            : 'right-0 bottom-0 md:right-6 md:bottom-6 w-full md:w-[340px] h-[72px] md:h-16 border-t md:border rounded-t-3xl md:rounded-2xl overflow-hidden'
         }`}
       >
         {/* Collapsed Preview Tab Header */}
         <button 
           onClick={() => setIsCartExpanded(!isCartExpanded)}
-          className={`flex items-center justify-between px-5 py-3.5 md:py-4 w-full cursor-pointer hover:bg-white/5 transition-colors shrink-0 outline-none ${isCartExpanded ? 'border-b border-white/10' : ''}`}
+          className={`flex items-center justify-between px-5 w-full cursor-pointer hover:bg-white/5 transition-colors shrink-0 outline-none ${
+            isCartExpanded ? 'h-16 border-b border-white/10' : 'h-full'
+          }`}
         >
           <div className="flex items-center gap-3.5">
             <div className="relative shrink-0 flex items-center justify-center">
@@ -380,15 +382,13 @@ export default function App() {
                 <ShoppingCart size={20} strokeWidth={2.5} />
               </div>
               {totalItems > 0 && (
-                <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[10px] font-black min-w-5 h-5 px-1 flex items-center justify-center rounded-full shadow-md border-2 border-zinc-900 leading-none">
+                <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-black min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full shadow-md border-2 border-zinc-900 leading-none">
                   {totalItems}
                 </div>
               )}
             </div>
             {!isCartExpanded && (
-              <div className="flex items-center">
-                <span className="font-black text-lg text-white tracking-tight leading-none">{totalPrice}</span>
-              </div>
+              <span className="font-black text-lg text-white tracking-tight leading-none">{totalPrice}</span>
             )}
             {isCartExpanded && <h2 className="text-lg font-black text-white tracking-tight leading-none">Your Preorder</h2>}
           </div>
