@@ -4,7 +4,7 @@ export type Tag = { id: number; name: string };
 export type CategoryVariant = { id: number; categoryId: number; name: string; price: number };
 export type ItemVariant = { id: number; itemId: number; variantId: number; stock: number; price: number };
 
-export type Category = { id: number; name: string; variants?: CategoryVariant[] };
+export type Category = { id: number; name: string; requiresCircularCrop?: boolean; variants?: CategoryVariant[] };
 export type Item = { 
   id: number; categoryId: number; name: string; stock: number; price: number; 
   imageUrl?: string; isArchived?: boolean; isDeletable?: boolean; isCustom?: boolean;
