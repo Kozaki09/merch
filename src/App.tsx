@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getImageUrl } from './lib/api';
-import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from './lib/cropImage';
 import './App.css';
@@ -72,6 +72,20 @@ export default function App() {
     }
   });
 
+  // Toast notifications state
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  // Order Success modal state
+  const [completedOrder, setCompletedOrder] = useState<{ orderNumber: string } | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+
   const { data: previewData } = useQuery({
     queryKey: ['cart-preview', cart],
     queryFn: () => api.previewCart(cart),
@@ -89,10 +103,12 @@ export default function App() {
       setIsCartExpanded(false);
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      alert(`Preorder successful! Your Order Number is: #${data.orderNumber}`);
+      const orderNum = data?.orderNumber || 'N/A';
+      setCompletedOrder({ orderNumber: orderNum });
+      showToast(`Preorder #${orderNum} placed successfully!`, 'success');
     },
     onError: (err: any) => {
-      alert(`Preorder failed: ${err.message}`);
+      showToast(`Preorder failed: ${err.message}`, 'error');
     }
   });
 
@@ -120,6 +136,7 @@ export default function App() {
       }
       return [...prev, { cartId: `${itemId}-${variantId}-${Date.now()}`, itemId, variantId, quantity: 1, deductFromStock: stock > 0 && !item.isCustom }];
     });
+    showToast(`${item.name} added to cart`, 'success');
   };
 
   const removeFromCart = (cartId: string) => {
@@ -581,7 +598,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => {
-                        if (hasVariants && !customVarId) { alert('Please select a variant'); return; }
+                        if (hasVariants && !customVarId) { showToast('Please select a variant option', 'error'); return; }
                         setCustomStep(3);
                       }}
                       className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all border border-white/10"
@@ -684,7 +701,7 @@ export default function App() {
                             uploadedImageUrl = res.imageUrl;
                           }
                         } catch (e: any) {
-                          alert('Failed to upload image: ' + e.message);
+                          showToast('Failed to upload image: ' + e.message, 'error');
                           setIsAddingCustom(false);
                           return;
                         }
@@ -692,6 +709,7 @@ export default function App() {
                           // Custom items are ALWAYS added as a new line item (each has a unique image)
                           return [...prev, { cartId: `custom-${customItem.id}-${customVarId || 0}-${Date.now()}`, itemId: customItem.id, variantId: customVarId || null, quantity: customQty, deductFromStock: false, customImage: uploadedImageUrl }];
                         });
+                        showToast('Custom item added to cart', 'success');
                         setIsCustomModalOpen(false);
                         setCustomStep(1);
                         setCustomCatId(null);
@@ -701,7 +719,7 @@ export default function App() {
                         setIsAddingCustom(false);
                         setIsCartExpanded(true);
                       } else {
-                        alert('Custom item not found for this category');
+                        showToast('Custom item not found for this category', 'error');
                       }
                     }}
                     disabled={isAddingCustom}
@@ -802,7 +820,7 @@ export default function App() {
                       setIsCropping(false);
                     } catch (e) {
                       console.error(e);
-                      alert('Failed to crop image');
+                      showToast('Failed to crop image', 'error');
                     }
                   }
                 }}
@@ -815,6 +833,72 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Order Success Modal */}
+      {completedOrder && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setCompletedOrder(null)}></div>
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+              <CheckCircle2 size={36} strokeWidth={2.5} />
+            </div>
+            
+            <h2 className="text-2xl font-black text-white mb-1 tracking-tight">Preorder Placed!</h2>
+            <p className="text-xs text-zinc-400 mb-6">Your order has been recorded. Save your order number below:</p>
+
+            <div className="bg-zinc-950 border border-white/10 rounded-2xl p-4 mb-6 relative group flex items-center justify-between">
+              <div className="text-left">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Order Number</span>
+                <span className="text-2xl font-mono font-black text-emerald-400 tracking-wider">#{completedOrder.orderNumber}</span>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(completedOrder.orderNumber);
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2000);
+                }}
+                className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-white/5 active:scale-95"
+              >
+                {isCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                {isCopied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setCompletedOrder(null)}
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-950/50 transition-all border border-white/10 active:scale-[0.98]"
+            >
+              Got it, Thanks!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toasts */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto flex items-center gap-3 p-4 rounded-2xl border shadow-xl backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200 text-sm font-medium ${
+              toast.type === 'success'
+                ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-200'
+                : toast.type === 'error'
+                ? 'bg-red-950/90 border-red-500/30 text-red-200'
+                : 'bg-zinc-900/90 border-white/10 text-zinc-200'
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />}
+            {toast.type === 'error' && <AlertCircle size={18} className="text-red-400 shrink-0" />}
+            <span className="flex-1 text-xs sm:text-sm">{toast.message}</span>
+            <button
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
       
     </div>
   );
