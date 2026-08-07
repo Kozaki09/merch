@@ -1,0 +1,56 @@
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+export type Tag = { id: number; name: string };
+export type CategoryVariant = { id: number; categoryId: number; name: string; price: number };
+export type ItemVariant = { id: number; itemId: number; variantId: number; stock: number; price: number };
+
+export type Category = { id: number; name: string; variants?: CategoryVariant[] };
+export type Item = { 
+  id: number; categoryId: number; name: string; stock: number; price: number; 
+  imageUrl?: string; isArchived?: boolean; isDeletable?: boolean; isCustom?: boolean;
+  variants?: ItemVariant[]; tags?: Tag[];
+};
+export type Bundle = { id: number; categoryId: number; variantId?: number | null; requiredQuantity: number; bundlePrice: number };
+export type CartItem = { itemId: number; quantity: number; variantId?: number | null; deductFromStock?: boolean; customImage?: string };
+
+async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData;
+  const headers: any = { ...options?.headers };
+  
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const res = await fetch(`${API_URL}/api${endpoint}`, {
+    ...options,
+    headers,
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.error || 'API request failed');
+  }
+  return res.json();
+}
+
+export const api = {
+  getCategories: () => fetcher<Category[]>('/categories'),
+  getItems: () => fetcher<Item[]>('/items'),
+  getBundles: () => fetcher<Bundle[]>('/bundles'),
+
+  previewCart: (cart: CartItem[]) => fetcher<{ totalAmount: number }>('/transactions/preview', { method: 'POST', body: JSON.stringify({ cart }) }),
+  checkout: (cart: CartItem[], isPreorder?: boolean, customerName?: string, notes?: string, isPrepaid?: boolean) => fetcher<{ success: boolean; totalAmount: number; orderNumber?: string }>('/transactions', { method: 'POST', body: JSON.stringify({ cart, isPreorder, customerName, notes, isPrepaid }) }),
+  
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return fetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      body: formData,
+    }).then(res => {
+      if (!res.ok) throw new Error('Upload failed');
+      return res.json() as Promise<{ imageUrl: string }>;
+    });
+  },
+};
+
+export const getImageUrl = (path: string) => `${API_URL}${path.startsWith('/') ? path : `/${path}`}`;
