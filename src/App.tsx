@@ -794,7 +794,13 @@ export default function App() {
                 <div className="absolute inset-y-0 left-1/2 -translate-x-px w-px bg-emerald-400/70 pointer-events-none z-10 transition-opacity" />
               )}
             </div>
-            <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-4">
+            <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-3">
+              {zoom < 0.99 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-medium animate-in fade-in duration-200">
+                  <AlertCircle size={14} className="shrink-0 text-amber-400" />
+                  <span>Image doesn't fill the circle — empty space will be filled with white background.</span>
+                </div>
+              )}
               {/* Quick action buttons */}
               <div className="flex gap-2">
                 <button
