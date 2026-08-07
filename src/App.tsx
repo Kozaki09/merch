@@ -656,7 +656,20 @@ export default function App() {
                 onZoomChange={setZoom}
               />
             </div>
-            <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex gap-3">
+            <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-4">
+              <div className="flex items-center gap-4 px-2">
+                <span className="text-zinc-400 font-medium text-xs uppercase tracking-wider">Zoom</span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-white hover:accent-emerald-400 transition-colors"
+                />
+              </div>
+              <div className="flex gap-3">
               <button 
                 onClick={() => {
                   setIsCropping(false);
@@ -683,6 +696,7 @@ export default function App() {
               >
                 Confirm Crop
               </button>
+              </div>
             </div>
           </div>
         </div>
