@@ -628,11 +628,12 @@ export default function App() {
                               const reader = new FileReader();
                               reader.onload = () => {
                                 const src = reader.result as string;
-                                // Compute fitZoom: ratio to fit entire image inside circle
+                                // Compute fitZoom: zoom so the image diagonal equals the circle diameter
+                                // Formula: zoom = 1 / sqrt(1 + r²) where r = longSide/shortSide
                                 const img = new Image();
                                 img.onload = () => {
-                                  const ratio = Math.min(img.naturalWidth, img.naturalHeight) / Math.max(img.naturalWidth, img.naturalHeight);
-                                  setFitZoom(ratio);
+                                  const r = Math.max(img.naturalWidth, img.naturalHeight) / Math.min(img.naturalWidth, img.naturalHeight);
+                                  setFitZoom(1 / Math.sqrt(1 + r * r));
                                 };
                                 img.src = src;
                                 setImageSrc(src);
