@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getImageUrl } from './lib/api';
-import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X, Clock } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from './lib/cropImage';
 import './App.css';
@@ -326,8 +326,10 @@ export default function App() {
                           <div className="text-blue-400 font-black text-sm whitespace-nowrap">{formatPrice(price)}</div>
                           {item.isCustom ? (
                             <div className="text-[9px] text-purple-400 uppercase font-bold bg-purple-500/10 px-1.5 py-0.5 rounded-md border border-purple-500/20 whitespace-nowrap">Custom</div>
-                          ) : (
+                          ) : stock > 0 ? (
                             <div className="text-[9px] text-zinc-500 font-medium whitespace-nowrap">{stock} in stock</div>
+                          ) : (
+                            <div className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-500/20 whitespace-nowrap">Out of Stock (2-day prep)</div>
                           )}
                         </div>
                       </div>
@@ -450,6 +452,11 @@ export default function App() {
                           <div>
                             <div className="text-sm font-bold text-white line-clamp-2 leading-snug">{item.name}</div>
                             {variantName && <div className="text-xs font-medium text-zinc-400 mt-0.5">{variantName}</div>}
+                            {(!item.isCustom && ((activeVariant ? activeVariant.stock : item.stock) <= 0)) && (
+                              <div className="text-[10px] font-bold text-amber-400 flex items-center gap-1 mt-1 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 w-fit">
+                                <Clock size={11} className="shrink-0" /> Takes 2+ days to make
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="text-sm text-blue-400 font-bold mt-2">{formatPrice(price)} <span className="text-zinc-500 font-normal text-xs">each</span></div>
@@ -473,6 +480,21 @@ export default function App() {
           </div>
 
           <div className="p-5 bg-zinc-950/80 backdrop-blur-md border-t border-white/5 shrink-0">
+            {cart.some(cItem => {
+              const item = items.find(i => i.id === cItem.itemId);
+              if (!item || item.isCustom) return false;
+              const variant = item.variants?.find((v: any) => v.variantId === cItem.variantId);
+              const stock = variant ? variant.stock : item.stock;
+              return stock <= 0;
+            }) && (
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium mb-3">
+                <Clock size={16} className="shrink-0 text-amber-400 mt-0.5" />
+                <div>
+                  <span className="font-bold block text-amber-200">Production Time Notice</span>
+                  Your cart includes out-of-stock item(s). These will take at least 2 days to make before your order is ready.
+                </div>
+              </div>
+            )}
             <div className="flex flex-col gap-3 mb-5">
               <input
                 type="text"
