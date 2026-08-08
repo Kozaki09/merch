@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/Merch-POS-Public/',
+  base: process.env.VITE_BASE_PATH || '/merch/',
   plugins: [
     tailwindcss(),
     react()
