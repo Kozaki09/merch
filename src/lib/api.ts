@@ -58,6 +58,8 @@ export type OrderDetails = {
   orderNumber?: string | null;
   notes?: string | null;
   receiptUrl?: string | null;
+  receiptStatus?: string | null;
+  receiptNotes?: string | null;
   items: OrderItem[];
   totalItemsCount: number;
   packedItemsCount: number;

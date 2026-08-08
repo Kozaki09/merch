@@ -1283,43 +1283,63 @@ export default function App() {
                         <Upload size={14} className="text-purple-400" /> Send Proof of Payment (Receipt Image)
                       </div>
 
-                      {activeOrderDetails.receiptUrl ? (
-                        <div className="p-3 bg-purple-950/30 border border-purple-500/30 rounded-xl flex items-center justify-between gap-3">
+                      {activeOrderDetails.receiptStatus === 'rejected' && (
+                        <div className="p-3.5 bg-red-950/60 border border-red-500/40 rounded-xl flex flex-col gap-1 text-xs text-red-200">
+                          <div className="flex items-center gap-2 font-bold text-red-400">
+                            <AlertCircle size={16} className="shrink-0" />
+                            <span>Payment Receipt Rejected</span>
+                          </div>
+                          <p className="text-[11px] leading-snug text-red-300">
+                            Reason: {activeOrderDetails.receiptNotes || 'Your payment receipt could not be verified by cashiers.'}
+                          </p>
+                          <div className="text-[11px] font-semibold text-zinc-300 mt-1">
+                            Please re-upload a clear receipt screenshot or re-send payment via GCash/Maya below:
+                          </div>
+                        </div>
+                      )}
+
+                      {activeOrderDetails.receiptUrl && activeOrderDetails.receiptStatus !== 'rejected' ? (
+                        <div className="p-3.5 bg-purple-950/30 border border-purple-500/30 rounded-xl flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 overflow-hidden">
                             <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                            <span className="text-xs text-purple-200 truncate">Receipt submitted!</span>
+                            <span className="text-xs text-purple-200 truncate">
+                              {activeOrderDetails.receiptStatus === 'verified' || activeOrderDetails.status === 'paid' 
+                                ? 'Payment Verified!' 
+                                : 'Receipt submitted! Awaiting cashier verification.'}
+                            </span>
                           </div>
                           <a
                             href={getImageUrl(activeOrderDetails.receiptUrl)}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-3 py-1 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1"
+                            className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1"
                           >
                             <ExternalLink size={12} /> View Receipt
                           </a>
                         </div>
-                      ) : null}
-
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={e => {
-                            if (e.target.files && e.target.files[0]) {
-                              setReceiptFile(e.target.files[0]);
-                            }
-                          }}
-                          className="flex-1 text-xs text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-blue-400 hover:file:bg-zinc-700 cursor-pointer"
-                        />
-                        <button
-                          onClick={handleUploadReceipt}
-                          disabled={!receiptFile || isUploadingReceipt}
-                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
-                        >
-                          {isUploadingReceipt ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                          <span>{isUploadingReceipt ? 'Uploading...' : 'Submit Receipt'}</span>
-                        </button>
-                      </div>
+                      ) : (
+                        /* Only show file upload controls if receipt is missing or was rejected */
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => {
+                              if (e.target.files && e.target.files[0]) {
+                                setReceiptFile(e.target.files[0]);
+                              }
+                            }}
+                            className="flex-1 text-xs text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-blue-400 hover:file:bg-zinc-700 cursor-pointer"
+                          />
+                          <button
+                            onClick={handleUploadReceipt}
+                            disabled={!receiptFile || isUploadingReceipt}
+                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                          >
+                            {isUploadingReceipt ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                            <span>{isUploadingReceipt ? 'Uploading...' : activeOrderDetails.receiptStatus === 'rejected' ? 'Re-submit Receipt' : 'Submit Receipt'}</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
