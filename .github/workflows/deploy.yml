@@ -37,6 +37,9 @@ jobs:
         run: pnpm run build
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PAYMENT_NAME: ${{ vars.VITE_PAYMENT_NAME }}
+          VITE_GCASH_NUMBER: ${{ vars.VITE_GCASH_NUMBER }}
+          VITE_MAYA_NUMBER: ${{ vars.VITE_MAYA_NUMBER }}
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact

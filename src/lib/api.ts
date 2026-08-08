@@ -33,6 +33,37 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export type OrderItem = {
+  id: number;
+  quantity: number;
+  priceAtTimeOfSale: number;
+  name: string;
+  imageUrl?: string | null;
+  categoryName?: string | null;
+  variantName?: string | null;
+  customImage?: string | null;
+  isPacked?: boolean;
+};
+
+export type OrderDetails = {
+  id: number;
+  totalAmount: number;
+  createdAt: string;
+  completedAt?: string | null;
+  isPreorder?: boolean;
+  status?: string;
+  isPacked?: boolean;
+  isClaimed?: boolean;
+  customerName?: string | null;
+  orderNumber?: string | null;
+  notes?: string | null;
+  receiptUrl?: string | null;
+  items: OrderItem[];
+  totalItemsCount: number;
+  packedItemsCount: number;
+  allPacked: boolean;
+};
+
 export const api = {
   getCategories: () => fetcher<Category[]>('/categories'),
   getItems: () => fetcher<Item[]>('/items'),
@@ -41,6 +72,9 @@ export const api = {
   previewCart: (cart: CartItem[]) => fetcher<{ totalAmount: number }>('/transactions/preview', { method: 'POST', body: JSON.stringify({ cart }) }),
   checkout: (cart: CartItem[], isPreorder?: boolean, customerName?: string, notes?: string, isPrepaid?: boolean) => fetcher<{ success: boolean; totalAmount: number; orderNumber?: string }>('/transactions', { method: 'POST', body: JSON.stringify({ cart, isPreorder, customerName, notes, isPrepaid }) }),
   
+  lookupOrder: (orderNumber: string) => fetcher<OrderDetails>(`/transactions/lookup/${encodeURIComponent(orderNumber)}`),
+  uploadReceipt: (orderNumber: string, receiptUrl: string) => fetcher<{ success: boolean; receiptUrl: string }>(`/transactions/lookup/${encodeURIComponent(orderNumber)}/receipt`, { method: 'POST', body: JSON.stringify({ receiptUrl }) }),
+
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append('image', file);

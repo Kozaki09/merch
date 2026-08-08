@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, getImageUrl } from './lib/api';
-import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X, Clock } from 'lucide-react';
+import { api, getImageUrl, type OrderDetails } from './lib/api';
+import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X, Clock, Package, CreditCard, Upload, ExternalLink, QrCode, RefreshCw } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from './lib/cropImage';
 import './App.css';
@@ -85,6 +85,53 @@ export default function App() {
   const [completedOrder, setCompletedOrder] = useState<{ orderNumber: string } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
+  // Track Order modal state
+  const [isTrackOrderModalOpen, setIsTrackOrderModalOpen] = useState(false);
+  const [trackOrderInput, setTrackOrderInput] = useState('');
+  const [activeOrderDetails, setActiveOrderDetails] = useState<OrderDetails | null>(null);
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const [paymentMethodTab, setPaymentMethodTab] = useState<'gcash' | 'maya'>('gcash');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const [isQrExpanded, setIsQrExpanded] = useState(false);
+
+  const handleLookupOrder = async (orderNumToSearch?: string) => {
+    const queryNum = (orderNumToSearch !== undefined ? orderNumToSearch : trackOrderInput).trim();
+    if (!queryNum) {
+      setLookupError('Please enter an order number');
+      return;
+    }
+    setIsLookupLoading(true);
+    setLookupError(null);
+    try {
+      const data = await api.lookupOrder(queryNum);
+      setActiveOrderDetails(data);
+    } catch (err: any) {
+      setLookupError(err.message || 'Order not found. Please check your order number.');
+      setActiveOrderDetails(null);
+    } finally {
+      setIsLookupLoading(false);
+    }
+  };
+
+  const handleUploadReceipt = async () => {
+    if (!receiptFile || !activeOrderDetails || !activeOrderDetails.orderNumber) return;
+    setIsUploadingReceipt(true);
+    try {
+      const { imageUrl } = await api.uploadImage(receiptFile);
+      await api.uploadReceipt(activeOrderDetails.orderNumber, imageUrl);
+      showToast('Payment receipt uploaded successfully!', 'success');
+      setReceiptFile(null);
+      handleLookupOrder(activeOrderDetails.orderNumber);
+    } catch (err: any) {
+      showToast(`Receipt upload failed: ${err.message}`, 'error');
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  };
+
   const { data: previewData } = useQuery({
     queryKey: ['cart-preview', cart],
     queryFn: () => api.previewCart(cart),
@@ -167,6 +214,15 @@ export default function App() {
             <ShoppingCart size={20} />
           </div>
           <div>Merch Store <span className="text-blue-500 font-medium">Preorder</span></div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsTrackOrderModalOpen(true)}
+            className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-white/20 text-zinc-200 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm active:scale-95 cursor-pointer"
+          >
+            <Clock size={15} className="text-blue-400" />
+            <span>Track Order</span>
+          </button>
         </div>
       </div>
 
@@ -908,17 +964,445 @@ export default function App() {
               </button>
             </div>
 
-            <button
-              onClick={() => setCompletedOrder(null)}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-950/50 transition-all border border-white/10 active:scale-[0.98]"
-            >
-              Got it, Thanks!
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <button
+                onClick={() => {
+                  const orderNum = completedOrder.orderNumber;
+                  setCompletedOrder(null);
+                  setTrackOrderInput(orderNum);
+                  setIsTrackOrderModalOpen(true);
+                  handleLookupOrder(orderNum);
+                }}
+                className="w-full py-3 bg-blue-600/30 hover:bg-blue-600/40 text-blue-300 font-bold text-xs rounded-xl border border-blue-500/30 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <Clock size={16} /> Track Order & Send Payment Receipt
+              </button>
+
+              <button
+                onClick={() => setCompletedOrder(null)}
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-950/50 transition-all border border-white/10 active:scale-[0.98]"
+              >
+                Got it, Thanks!
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      
+      {/* Track Order Modal */}
+      {isTrackOrderModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsTrackOrderModalOpen(false)}></div>
+          
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-white/10 flex justify-between items-center bg-zinc-950/50 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center border border-blue-500/30">
+                  <Package size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white leading-tight">Track Your Order</h2>
+                  <p className="text-xs text-zinc-400">Check item progress and upload payment receipts</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsTrackOrderModalOpen(false);
+                  setLookupError(null);
+                }}
+                className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-6 no-scrollbar">
+              
+              {/* Search Bar */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Enter Order # (e.g., ABC123)"
+                    value={trackOrderInput}
+                    onChange={e => setTrackOrderInput(e.target.value.toUpperCase())}
+                    onKeyDown={e => { if (e.key === 'Enter') handleLookupOrder(); }}
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider uppercase placeholder-zinc-600"
+                  />
+                </div>
+                <button
+                  onClick={() => handleLookupOrder()}
+                  disabled={isLookupLoading}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-blue-950 flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                >
+                  {isLookupLoading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+                  <span>{isLookupLoading ? 'Searching...' : 'Check Status'}</span>
+                </button>
+              </div>
+
+              {/* Error Alert */}
+              {lookupError && (
+                <div className="p-4 bg-red-950/50 border border-red-500/30 rounded-2xl flex items-center gap-3 text-red-200 text-xs font-medium">
+                  <AlertCircle size={18} className="text-red-400 shrink-0" />
+                  <span>{lookupError}</span>
+                </div>
+              )}
+
+              {/* Order Details Display */}
+              {activeOrderDetails && (
+                <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+                  
+                  {/* Top Status Card */}
+                  <div className="bg-zinc-950 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+                    <div className="flex flex-wrap justify-between items-start gap-2 border-b border-white/5 pb-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Order Reference</div>
+                        <div className="text-xl font-mono font-black text-emerald-400">#{activeOrderDetails.orderNumber}</div>
+                        {activeOrderDetails.customerName && (
+                          <div className="text-xs text-zinc-300 mt-0.5">Customer: <span className="font-semibold text-white">{activeOrderDetails.customerName}</span></div>
+                        )}
+                        <div className="text-[11px] text-zinc-500 mt-0.5">{new Date(activeOrderDetails.createdAt).toLocaleString()}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-black text-white">{formatPrice(activeOrderDetails.totalAmount)}</div>
+                        <div className="mt-1 flex justify-end gap-1.5 flex-wrap">
+                          {activeOrderDetails.status === 'paid' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Paid</span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Unpaid</span>
+                          )}
+                          {activeOrderDetails.isClaimed || activeOrderDetails.completedAt ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">Completed</span>
+                          ) : activeOrderDetails.allPacked ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Ready for Pickup</span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Preparing</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar Header */}
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      <div className="flex justify-between items-center text-xs font-bold">
+                        <span className="text-zinc-300 flex items-center gap-1.5">
+                          {activeOrderDetails.allPacked ? (
+                            <CheckCircle2 size={16} className="text-emerald-400" />
+                          ) : (
+                            <Clock size={16} className="text-amber-400" />
+                          )}
+                          {activeOrderDetails.allPacked ? 'All Items Ready!' : 'Item Preparation Status'}
+                        </span>
+                        <span className="text-zinc-400 font-mono">
+                          {activeOrderDetails.packedItemsCount} / {activeOrderDetails.totalItemsCount} Ready
+                        </span>
+                      </div>
+                      
+                      <div className="w-full h-2.5 bg-zinc-900 rounded-full overflow-hidden border border-white/5">
+                        <div
+                          className={`h-full transition-all duration-500 ${
+                            activeOrderDetails.allPacked
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                              : 'bg-gradient-to-r from-amber-500 to-blue-500'
+                          }`}
+                          style={{
+                            width: `${
+                              activeOrderDetails.totalItemsCount > 0
+                                ? (activeOrderDetails.packedItemsCount / activeOrderDetails.totalItemsCount) * 100
+                                : 0
+                            }%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items List */}
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 flex items-center gap-2">
+                      <Package size={14} /> Items in Order
+                    </h3>
+                    <div className="flex flex-col gap-2.5">
+                      {activeOrderDetails.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 bg-zinc-950/60 border border-white/5 rounded-2xl flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                              {item.customImage ? (
+                                <img src={getImageUrl(item.customImage)} alt={item.name} className="w-full h-full object-cover" />
+                              ) : item.imageUrl ? (
+                                <img src={getImageUrl(item.imageUrl)} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Package size={18} className="text-zinc-600" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold text-white leading-tight line-clamp-1">{item.name}</div>
+                              <div className="text-[11px] text-zinc-400 mt-0.5">
+                                {item.quantity}x • {formatPrice(item.priceAtTimeOfSale)}
+                                {item.variantName ? ` • ${item.variantName}` : ''}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {item.isPacked ? (
+                              <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center gap-1">
+                                <CheckCircle2 size={12} /> Ready
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300 flex items-center gap-1">
+                                <Clock size={12} /> Preparing
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Payment & Receipt Section */}
+                  <div className="bg-zinc-950/80 border border-white/10 rounded-2xl p-4 flex flex-col gap-4">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+                        <CreditCard size={14} className="text-blue-400" /> Payment & QR Codes
+                      </h3>
+                      {activeOrderDetails.status === 'paid' ? (
+                        <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                          <CheckCircle2 size={14} /> Payment Verified
+                        </span>
+                      ) : (
+                        <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                          <AlertCircle size={14} /> Pending Payment
+                        </span>
+                      )}
+                    </div>
+
+                    {/* QR Payment Options Tabs */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex bg-zinc-900 border border-white/5 rounded-xl p-1 gap-1">
+                        <button
+                          onClick={() => setPaymentMethodTab('gcash')}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            paymentMethodTab === 'gcash'
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          GCash QR
+                        </button>
+                        <button
+                          onClick={() => setPaymentMethodTab('maya')}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            paymentMethodTab === 'maya'
+                              ? 'bg-purple-600 text-white shadow-md'
+                              : 'text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          Maya QR
+                        </button>
+                      </div>
+
+                      {/* QR Display Card */}
+                      <div className="p-4 bg-zinc-900/60 border border-white/5 rounded-xl flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                        <div 
+                          onClick={() => setIsQrExpanded(true)}
+                          className="w-32 h-32 bg-white p-2 rounded-xl shrink-0 flex flex-col items-center justify-center shadow-md relative overflow-hidden group cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-all"
+                          title="Click to Expand QR Code"
+                        >
+                          <img
+                            src={paymentMethodTab === 'gcash' 
+                              ? (import.meta.env.VITE_GCASH_QR_CLEAN_URL || `${import.meta.env.BASE_URL}gcash_qr_clean.jpg`)
+                              : (import.meta.env.VITE_MAYA_QR_CLEAN_URL || `${import.meta.env.BASE_URL}maya_qr_clean.jpg`)
+                            }
+                            alt={`${paymentMethodTab} Clean QR Code`}
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              // Fallback to original image if clean image is not present
+                              const target = e.currentTarget as HTMLImageElement;
+                              const baseUrl = import.meta.env.BASE_URL || '/';
+                              if (paymentMethodTab === 'gcash' && !target.src.includes('gcash_qr.jpg')) {
+                                target.src = `${baseUrl}gcash_qr.jpg`;
+                              } else if (paymentMethodTab === 'maya' && !target.src.includes('maya_qr.jpg')) {
+                                target.src = `${baseUrl}maya_qr.jpg`;
+                              } else {
+                                target.style.display = 'none';
+                                const fallback = target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-wider backdrop-blur-[1px]">
+                            🔍 Expand
+                          </div>
+                          <div className="w-full h-full border-2 border-dashed border-zinc-400 rounded flex flex-col items-center justify-center p-1 text-center hidden">
+                            <QrCode size={40} className={paymentMethodTab === 'gcash' ? 'text-blue-600' : 'text-purple-600'} />
+                            <span className="text-[8px] font-black tracking-tighter uppercase text-zinc-800 mt-1">
+                              {paymentMethodTab === 'gcash' ? 'GCash Pay' : 'Maya Pay'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-1 flex flex-col gap-1.5">
+                          <div className="text-sm font-bold text-white">
+                            {paymentMethodTab === 'gcash' ? 'GCash Express Pay' : 'Maya Wallet'}
+                          </div>
+                          <div className="text-xs text-zinc-300">
+                            Account Name: <span className="font-semibold text-white">{import.meta.env.VITE_PAYMENT_NAME || 'Godwin I. Florendo'}</span>
+                          </div>
+                          <div className="text-xs text-zinc-300">
+                            Number: <span className="font-mono font-bold text-emerald-400">
+                              {paymentMethodTab === 'gcash' 
+                                ? (import.meta.env.VITE_GCASH_NUMBER || '09503876551') 
+                                : (import.meta.env.VITE_MAYA_NUMBER || '09943926826')
+                              }
+                            </span>
+                          </div>
+                          
+                          <div className="flex gap-2 mt-1">
+                            <a
+                              href={paymentMethodTab === 'gcash' ? `${import.meta.env.BASE_URL}gcash_qr.jpg` : `${import.meta.env.BASE_URL}maya_qr.jpg`}
+                              download={`${paymentMethodTab}_full_card.jpg`}
+                              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-1.5 active:scale-95"
+                            >
+                              <ExternalLink size={12} className="text-blue-400" />
+                              <span>Download Full QR Card</span>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Receipt Upload Box */}
+                    <div className="pt-2 border-t border-white/5 flex flex-col gap-3">
+                      <div className="text-xs font-bold text-zinc-300 flex items-center gap-2">
+                        <Upload size={14} className="text-purple-400" /> Send Proof of Payment (Receipt Image)
+                      </div>
+
+                      {activeOrderDetails.receiptUrl ? (
+                        <div className="p-3 bg-purple-950/30 border border-purple-500/30 rounded-xl flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                            <span className="text-xs text-purple-200 truncate">Receipt submitted!</span>
+                          </div>
+                          <a
+                            href={getImageUrl(activeOrderDetails.receiptUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1"
+                          >
+                            <ExternalLink size={12} /> View Receipt
+                          </a>
+                        </div>
+                      ) : null}
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              setReceiptFile(e.target.files[0]);
+                            }
+                          }}
+                          className="flex-1 text-xs text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-blue-400 hover:file:bg-zinc-700 cursor-pointer"
+                        />
+                        <button
+                          onClick={handleUploadReceipt}
+                          disabled={!receiptFile || isUploadingReceipt}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                        >
+                          {isUploadingReceipt ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                          <span>{isUploadingReceipt ? 'Uploading...' : 'Submit Receipt'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded QR Modal */}
+      {isQrExpanded && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsQrExpanded(false)}></div>
+          
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md p-6 flex flex-col items-center gap-5 shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 text-center">
+            
+            {/* Header */}
+            <div className="w-full flex justify-between items-center border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-left">
+                <QrCode size={20} className={paymentMethodTab === 'gcash' ? 'text-blue-400' : 'text-purple-400'} />
+                <div>
+                  <h3 className="text-sm font-bold text-white leading-tight">
+                    {paymentMethodTab === 'gcash' ? 'GCash QR Code' : 'Maya QR Code'}
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">Scan using your mobile banking app</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsQrExpanded(false)}
+                className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* High Res Flush Clean QR Display */}
+            <div className="w-64 h-64 sm:w-72 sm:h-72 bg-white p-3 rounded-2xl shadow-2xl flex items-center justify-center border-4 border-white/20">
+              <img
+                src={paymentMethodTab === 'gcash'
+                  ? (import.meta.env.VITE_GCASH_QR_CLEAN_URL || `${import.meta.env.BASE_URL}gcash_qr_clean.jpg`)
+                  : (import.meta.env.VITE_MAYA_QR_CLEAN_URL || `${import.meta.env.BASE_URL}maya_qr_clean.jpg`)
+                }
+                alt={`${paymentMethodTab} Expanded QR Code`}
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            {/* Account Info Card */}
+            <div className="w-full p-3.5 bg-zinc-950/80 border border-white/10 rounded-2xl flex flex-col gap-1 text-xs">
+              <div className="text-zinc-400">Account Name: <span className="font-semibold text-white">{import.meta.env.VITE_PAYMENT_NAME || 'Godwin I. Florendo'}</span></div>
+              <div className="text-zinc-400 flex items-center justify-center gap-2">
+                <span>Number:</span>
+                <span className="font-mono font-bold text-emerald-400 text-sm">
+                  {paymentMethodTab === 'gcash' 
+                    ? (import.meta.env.VITE_GCASH_NUMBER || '09503876551') 
+                    : (import.meta.env.VITE_MAYA_NUMBER || '09943926826')
+                  }
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="w-full flex gap-3">
+              <a
+                href={paymentMethodTab === 'gcash' ? `${import.meta.env.BASE_URL}gcash_qr.jpg` : `${import.meta.env.BASE_URL}maya_qr.jpg`}
+                download={`${paymentMethodTab}_full_card.jpg`}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs rounded-xl border border-white/10 transition-all flex items-center justify-center gap-2 active:scale-95"
+              >
+                <ExternalLink size={14} className="text-blue-400" /> Download Full Card
+              </a>
+              <button
+                onClick={() => setIsQrExpanded(false)}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
