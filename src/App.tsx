@@ -10,7 +10,6 @@ export default function App() {
   const [cart, setCart] = useState<{ cartId: string; itemId: number; variantId?: number | null; quantity: number; deductFromStock?: boolean; customImage?: string }[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
-  const [isPrepaid, setIsPrepaid] = useState(false);
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [selectedVariants, setSelectedVariants] = useState<Record<number, number>>({});
   
@@ -94,12 +93,11 @@ export default function App() {
 
   const queryClient = useQueryClient();
   const checkoutMutation = useMutation({
-    mutationFn: () => api.checkout(cart, true, customerName, notes, isPrepaid),
+    mutationFn: () => api.checkout(cart, true, customerName, notes),
     onSuccess: (data) => {
       setCart([]);
       setCustomerName('');
       setNotes('');
-      setIsPrepaid(false);
       setIsCartExpanded(false);
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -510,15 +508,6 @@ export default function App() {
                 rows={2}
                 className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder-zinc-500 resize-none transition-all"
               />
-              <label className="flex items-center gap-3 cursor-pointer mt-2 bg-zinc-900/50 p-3 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={isPrepaid}
-                  onChange={(e) => setIsPrepaid(e.target.checked)}
-                  className="w-4 h-4 rounded bg-zinc-950 border-white/10 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-950"
-                />
-                <span className="text-sm text-zinc-300 font-bold select-none">Mark as Prepaid</span>
-              </label>
             </div>
             
             <div className="flex justify-between items-end mb-5">
