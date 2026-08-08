@@ -1069,17 +1069,23 @@ export default function App() {
                       <div className="text-right">
                         <div className="text-xl font-black text-white">{formatPrice(activeOrderDetails.totalAmount)}</div>
                         <div className="mt-1 flex justify-end gap-1.5 flex-wrap">
-                          {activeOrderDetails.status === 'paid' ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Paid</span>
+                          {activeOrderDetails.status === 'cancelled' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">Cancelled</span>
                           ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Unpaid</span>
-                          )}
-                          {activeOrderDetails.isClaimed || activeOrderDetails.completedAt ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">Completed</span>
-                          ) : activeOrderDetails.allPacked ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Ready for Pickup</span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Preparing</span>
+                            <>
+                              {activeOrderDetails.status === 'paid' ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Paid</span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Unpaid</span>
+                              )}
+                              {activeOrderDetails.isClaimed || activeOrderDetails.completedAt ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">Completed</span>
+                              ) : activeOrderDetails.allPacked ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Ready for Pickup</span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Preparing</span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -1119,6 +1125,17 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Cancelled Order Warning Card */}
+                  {activeOrderDetails.status === 'cancelled' && (
+                    <div className="p-4 bg-red-950/60 border border-red-500/40 rounded-2xl flex items-center gap-3 text-xs text-red-200">
+                      <AlertCircle size={20} className="text-red-400 shrink-0" />
+                      <div>
+                        <div className="font-bold text-red-400 text-sm">Order Cancelled</div>
+                        <p className="text-red-300 mt-0.5">This order has been cancelled by store cashiers. Item preparation has stopped and payment uploads are disabled.</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Items List */}
                   <div>
@@ -1167,181 +1184,187 @@ export default function App() {
                   </div>
 
                   {/* Payment & Receipt Section */}
-                  <div className="bg-zinc-950/80 border border-white/10 rounded-2xl p-4 flex flex-col gap-4">
-                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-                        <CreditCard size={14} className="text-blue-400" /> Payment & QR Codes
-                      </h3>
-                      {activeOrderDetails.status === 'paid' ? (
-                        <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 size={14} /> Payment Verified
-                        </span>
-                      ) : (
-                        <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
-                          <AlertCircle size={14} /> Pending Payment
-                        </span>
-                      )}
+                  {activeOrderDetails.status === 'cancelled' ? (
+                    <div className="p-4 bg-zinc-950/80 border border-white/10 rounded-2xl text-center text-xs text-zinc-400 font-medium">
+                      Payment QR codes and receipt submission are unavailable for cancelled orders.
                     </div>
-
-                    {/* QR Payment Options Tabs */}
-                    <div className="flex flex-col gap-3">
-                      <div className="flex bg-zinc-900 border border-white/5 rounded-xl p-1 gap-1">
-                        <button
-                          onClick={() => setPaymentMethodTab('gcash')}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            paymentMethodTab === 'gcash'
-                              ? 'bg-blue-600 text-white shadow-md'
-                              : 'text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          GCash QR
-                        </button>
-                        <button
-                          onClick={() => setPaymentMethodTab('maya')}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                            paymentMethodTab === 'maya'
-                              ? 'bg-purple-600 text-white shadow-md'
-                              : 'text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          Maya QR
-                        </button>
+                  ) : (
+                    <div className="bg-zinc-950/80 border border-white/10 rounded-2xl p-4 flex flex-col gap-4">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
+                          <CreditCard size={14} className="text-blue-400" /> Payment & QR Codes
+                        </h3>
+                        {activeOrderDetails.status === 'paid' ? (
+                          <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                            <CheckCircle2 size={14} /> Payment Verified
+                          </span>
+                        ) : (
+                          <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                            <AlertCircle size={14} /> Pending Payment
+                          </span>
+                        )}
                       </div>
 
-                      {/* QR Display Card */}
-                      <div className="p-4 bg-zinc-900/60 border border-white/5 rounded-xl flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                        <div 
-                          onClick={() => setIsQrExpanded(true)}
-                          className="w-32 h-32 bg-white p-2 rounded-xl shrink-0 flex flex-col items-center justify-center shadow-md relative overflow-hidden group cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-all"
-                          title="Click to Expand QR Code"
-                        >
-                          <img
-                            src={paymentMethodTab === 'gcash' 
-                              ? (import.meta.env.VITE_GCASH_QR_CLEAN_URL || `${import.meta.env.BASE_URL}gcash_qr_clean.jpg`)
-                              : (import.meta.env.VITE_MAYA_QR_CLEAN_URL || `${import.meta.env.BASE_URL}maya_qr_clean.jpg`)
-                            }
-                            alt={`${paymentMethodTab} Clean QR Code`}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              // Fallback to original image if clean image is not present
-                              const target = e.currentTarget as HTMLImageElement;
-                              const baseUrl = import.meta.env.BASE_URL || '/';
-                              if (paymentMethodTab === 'gcash' && !target.src.includes('gcash_qr.jpg')) {
-                                target.src = `${baseUrl}gcash_qr.jpg`;
-                              } else if (paymentMethodTab === 'maya' && !target.src.includes('maya_qr.jpg')) {
-                                target.src = `${baseUrl}maya_qr.jpg`;
-                              } else {
-                                target.style.display = 'none';
-                                const fallback = target.nextElementSibling as HTMLElement;
-                                if (fallback) fallback.style.display = 'flex';
-                              }
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-wider backdrop-blur-[1px]">
-                            🔍 Expand
-                          </div>
-                          <div className="w-full h-full border-2 border-dashed border-zinc-400 rounded flex flex-col items-center justify-center p-1 text-center hidden">
-                            <QrCode size={40} className={paymentMethodTab === 'gcash' ? 'text-blue-600' : 'text-purple-600'} />
-                            <span className="text-[8px] font-black tracking-tighter uppercase text-zinc-800 mt-1">
-                              {paymentMethodTab === 'gcash' ? 'GCash Pay' : 'Maya Pay'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex-1 flex flex-col gap-1.5">
-                          <div className="text-sm font-bold text-white">
-                            {paymentMethodTab === 'gcash' ? 'GCash Express Pay' : 'Maya Wallet'}
-                          </div>
-                          <div className="text-xs text-zinc-300">
-                            Account Name: <span className="font-semibold text-white">{import.meta.env.VITE_PAYMENT_NAME || 'Godwin I. Florendo'}</span>
-                          </div>
-                          <div className="text-xs text-zinc-300">
-                            Number: <span className="font-mono font-bold text-emerald-400">
-                              {paymentMethodTab === 'gcash' 
-                                ? (import.meta.env.VITE_GCASH_NUMBER || '09503876551') 
-                                : (import.meta.env.VITE_MAYA_NUMBER || '09943926826')
-                              }
-                            </span>
-                          </div>
-                          
-                          <div className="flex gap-2 mt-1">
-                            <a
-                              href={paymentMethodTab === 'gcash' ? `${import.meta.env.BASE_URL}gcash_qr.jpg` : `${import.meta.env.BASE_URL}maya_qr.jpg`}
-                              download={`${paymentMethodTab}_full_card.jpg`}
-                              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-1.5 active:scale-95"
-                            >
-                              <ExternalLink size={12} className="text-blue-400" />
-                              <span>Download Full QR Card</span>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Receipt Upload Box */}
-                    <div className="pt-2 border-t border-white/5 flex flex-col gap-3">
-                      <div className="text-xs font-bold text-zinc-300 flex items-center gap-2">
-                        <Upload size={14} className="text-purple-400" /> Send Proof of Payment (Receipt Image)
-                      </div>
-
-                      {activeOrderDetails.receiptStatus === 'rejected' && (
-                        <div className="p-3.5 bg-red-950/60 border border-red-500/40 rounded-xl flex flex-col gap-1 text-xs text-red-200">
-                          <div className="flex items-center gap-2 font-bold text-red-400">
-                            <AlertCircle size={16} className="shrink-0" />
-                            <span>Payment Receipt Rejected</span>
-                          </div>
-                          <p className="text-[11px] leading-snug text-red-300">
-                            Reason: {activeOrderDetails.receiptNotes || 'Your payment receipt could not be verified by cashiers.'}
-                          </p>
-                          <div className="text-[11px] font-semibold text-zinc-300 mt-1">
-                            Please re-upload a clear receipt screenshot or re-send payment via GCash/Maya below:
-                          </div>
-                        </div>
-                      )}
-
-                      {activeOrderDetails.receiptUrl && activeOrderDetails.receiptStatus !== 'rejected' ? (
-                        <div className="p-3.5 bg-purple-950/30 border border-purple-500/30 rounded-xl flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                            <span className="text-xs text-purple-200 truncate">
-                              {activeOrderDetails.receiptStatus === 'verified' || activeOrderDetails.status === 'paid' 
-                                ? 'Payment Verified!' 
-                                : 'Receipt submitted! Awaiting cashier verification.'}
-                            </span>
-                          </div>
-                          <a
-                            href={getImageUrl(activeOrderDetails.receiptUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1"
-                          >
-                            <ExternalLink size={12} /> View Receipt
-                          </a>
-                        </div>
-                      ) : (
-                        /* Only show file upload controls if receipt is missing or was rejected */
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={e => {
-                              if (e.target.files && e.target.files[0]) {
-                                setReceiptFile(e.target.files[0]);
-                              }
-                            }}
-                            className="flex-1 text-xs text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-blue-400 hover:file:bg-zinc-700 cursor-pointer"
-                          />
+                      {/* Payment Method Selector Tabs */}
+                      <div className="flex flex-col gap-3">
+                        <div className="flex p-1 bg-zinc-900 rounded-xl border border-white/5 gap-1">
                           <button
-                            onClick={handleUploadReceipt}
-                            disabled={!receiptFile || isUploadingReceipt}
-                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                            onClick={() => setPaymentMethodTab('gcash')}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                              paymentMethodTab === 'gcash'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                            }`}
                           >
-                            {isUploadingReceipt ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                            <span>{isUploadingReceipt ? 'Uploading...' : activeOrderDetails.receiptStatus === 'rejected' ? 'Re-submit Receipt' : 'Submit Receipt'}</span>
+                            <span>GCash</span>
+                          </button>
+                          <button
+                            onClick={() => setPaymentMethodTab('maya')}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                              paymentMethodTab === 'maya'
+                                ? 'bg-purple-600 text-white shadow-md'
+                                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                            }`}
+                          >
+                            <span>Maya</span>
                           </button>
                         </div>
-                      )}
+
+                        {/* QR Display Card */}
+                        <div className="p-4 bg-zinc-900/60 border border-white/5 rounded-xl flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                          <div 
+                            onClick={() => setIsQrExpanded(true)}
+                            className="w-32 h-32 bg-white p-2 rounded-xl shrink-0 flex flex-col items-center justify-center shadow-md relative overflow-hidden group cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-all"
+                            title="Click to Expand QR Code"
+                          >
+                            <img
+                              src={paymentMethodTab === 'gcash' 
+                                ? (import.meta.env.VITE_GCASH_QR_CLEAN_URL || `${import.meta.env.BASE_URL}gcash_qr_clean.jpg`)
+                                : (import.meta.env.VITE_MAYA_QR_CLEAN_URL || `${import.meta.env.BASE_URL}maya_qr_clean.jpg`)
+                              }
+                              alt={`${paymentMethodTab} Clean QR Code`}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                // Fallback to original image if clean image is not present
+                                const target = e.currentTarget as HTMLImageElement;
+                                const baseUrl = import.meta.env.BASE_URL || '/';
+                                if (paymentMethodTab === 'gcash' && !target.src.includes('gcash_qr.jpg')) {
+                                  target.src = `${baseUrl}gcash_qr.jpg`;
+                                } else if (paymentMethodTab === 'maya' && !target.src.includes('maya_qr.jpg')) {
+                                  target.src = `${baseUrl}maya_qr.jpg`;
+                                } else {
+                                  target.style.display = 'none';
+                                  const fallback = target.nextElementSibling as HTMLElement;
+                                  if (fallback) fallback.style.display = 'flex';
+                                }
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-wider backdrop-blur-[1px]">
+                              🔍 Expand
+                            </div>
+                            <div className="w-full h-full border-2 border-dashed border-zinc-400 rounded flex flex-col items-center justify-center p-1 text-center hidden">
+                              <QrCode size={40} className={paymentMethodTab === 'gcash' ? 'text-blue-600' : 'text-purple-600'} />
+                              <span className="text-[8px] font-black tracking-tighter uppercase text-zinc-800 mt-1">
+                                {paymentMethodTab === 'gcash' ? 'GCash Pay' : 'Maya Pay'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex-1 flex flex-col gap-1.5">
+                            <div className="text-sm font-bold text-white">
+                              {paymentMethodTab === 'gcash' ? 'GCash Express Pay' : 'Maya Wallet'}
+                            </div>
+                            <div className="text-xs text-zinc-300">
+                              Account Name: <span className="font-semibold text-white">{import.meta.env.VITE_PAYMENT_NAME || 'Godwin I. Florendo'}</span>
+                            </div>
+                            <div className="text-xs text-zinc-300">
+                              Number: <span className="font-mono font-bold text-emerald-400">
+                                {paymentMethodTab === 'gcash' 
+                                  ? (import.meta.env.VITE_GCASH_NUMBER || '09503876551') 
+                                  : (import.meta.env.VITE_MAYA_NUMBER || '09943926826')
+                                }
+                              </span>
+                            </div>
+                            
+                            <div className="flex gap-2 mt-1">
+                              <a
+                                href={paymentMethodTab === 'gcash' ? `${import.meta.env.BASE_URL}gcash_qr.jpg` : `${import.meta.env.BASE_URL}maya_qr.jpg`}
+                                download={`${paymentMethodTab}_full_card.jpg`}
+                                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-1.5 active:scale-95"
+                              >
+                                <ExternalLink size={12} className="text-blue-400" />
+                                <span>Download Full QR Card</span>
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Receipt Upload Box */}
+                      <div className="pt-2 border-t border-white/5 flex flex-col gap-3">
+                        <div className="text-xs font-bold text-zinc-300 flex items-center gap-2">
+                          <Upload size={14} className="text-purple-400" /> Send Proof of Payment (Receipt Image)
+                        </div>
+
+                        {activeOrderDetails.receiptStatus === 'rejected' && (
+                          <div className="p-3.5 bg-red-950/60 border border-red-500/40 rounded-xl flex flex-col gap-1 text-xs text-red-200">
+                            <div className="flex items-center gap-2 font-bold text-red-400">
+                              <AlertCircle size={16} className="shrink-0" />
+                              <span>Payment Receipt Rejected</span>
+                            </div>
+                            <p className="text-[11px] leading-snug text-red-300">
+                              Reason: {activeOrderDetails.receiptNotes || 'Your payment receipt could not be verified by cashiers.'}
+                            </p>
+                            <div className="text-[11px] font-semibold text-zinc-300 mt-1">
+                              Please re-upload a clear receipt screenshot or re-send payment via GCash/Maya below:
+                            </div>
+                          </div>
+                        )}
+
+                        {activeOrderDetails.receiptUrl && activeOrderDetails.receiptStatus !== 'rejected' ? (
+                          <div className="p-3.5 bg-purple-950/30 border border-purple-500/30 rounded-xl flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                              <span className="text-xs text-purple-200 truncate">
+                                {activeOrderDetails.receiptStatus === 'verified' || activeOrderDetails.status === 'paid' 
+                                  ? 'Payment Verified!' 
+                                  : 'Receipt submitted! Awaiting cashier verification.'}
+                              </span>
+                            </div>
+                            <a
+                              href={getImageUrl(activeOrderDetails.receiptUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1"
+                            >
+                              <ExternalLink size={12} /> View Receipt
+                            </a>
+                          </div>
+                        ) : (
+                          /* Only show file upload controls if receipt is missing or was rejected */
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={e => {
+                                if (e.target.files && e.target.files[0]) {
+                                  setReceiptFile(e.target.files[0]);
+                                }
+                              }}
+                              className="flex-1 text-xs text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-blue-400 hover:file:bg-zinc-700 cursor-pointer"
+                            />
+                            <button
+                              onClick={handleUploadReceipt}
+                              disabled={!receiptFile || isUploadingReceipt}
+                              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
+                            >
+                              {isUploadingReceipt ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                              <span>{isUploadingReceipt ? 'Uploading...' : activeOrderDetails.receiptStatus === 'rejected' ? 'Re-submit Receipt' : 'Submit Receipt'}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                 </div>
               )}
