@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getImageUrl, type OrderDetails } from './lib/api';
 import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X, Clock, Package, CreditCard, Upload, ExternalLink, QrCode, RefreshCw } from 'lucide-react';
@@ -30,6 +30,30 @@ export default function App() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
   const [snapped, setSnapped] = useState({ x: false, y: false });
+  const [imgNaturalSize, setImgNaturalSize] = useState({ w: 0, h: 0 });
+  const [cropHasWhiteSpace, setCropHasWhiteSpace] = useState(false);
+  // Stores the crop circle's size in screen pixels — derived in onCropComplete and used
+  // to recompute OOB status when crop/zoom change programmatically (button clicks).
+  const cropSizeScreenPxRef = useRef(0);
+
+  // Recompute whitespace whenever crop position, zoom, or image size changes.
+  // This fires even when buttons (Center / Reset / Fit) change state without a user drag.
+  useEffect(() => {
+    const S = cropSizeScreenPxRef.current;
+    if (S <= 0 || imgNaturalSize.w <= 0) return;
+    // Derive croppedAreaPixels from first principles:
+    //   capX = imgW/2 - S/(2*zoom) - crop.x/zoom
+    //   capY = imgH/2 - S/(2*zoom) - crop.y/zoom
+    //   capW = capH = S/zoom
+    const capW = S / zoom;
+    const capX = imgNaturalSize.w / 2 - S / (2 * zoom) - crop.x / zoom;
+    const capY = imgNaturalSize.h / 2 - S / (2 * zoom) - crop.y / zoom;
+    setCropHasWhiteSpace(
+      capX < 0 || capY < 0 ||
+      capX + capW > imgNaturalSize.w ||
+      capY + capW > imgNaturalSize.h
+    );
+  }, [crop, zoom, imgNaturalSize]);
 
   const SNAP_THRESHOLD = 1.5;
   const handleCropChange = (newCrop: { x: number; y: number }) => {
@@ -764,6 +788,7 @@ export default function App() {
                                   img.onload = () => {
                                     const r = Math.max(img.naturalWidth, img.naturalHeight) / Math.min(img.naturalWidth, img.naturalHeight);
                                     setFitZoom(1 / Math.sqrt(1 + r * r));
+                                    setImgNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
                                   };
                                   img.src = src;
                                   setImageSrc(src);
@@ -894,7 +919,18 @@ export default function App() {
                 showGrid={false}
                 restrictPosition={false}
                 onCropChange={handleCropChange}
-                onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                onCropComplete={(_, cap) => {
+                  setCroppedAreaPixels(cap);
+                  // Store the crop circle size in screen pixels for use in the useEffect.
+                  cropSizeScreenPxRef.current = cap.width * zoom;
+                  // Warn if the crop circle extends outside the original image bounds in any direction
+                  const oob =
+                    cap.x < 0 ||
+                    cap.y < 0 ||
+                    cap.x + cap.width  > imgNaturalSize.w ||
+                    cap.y + cap.height > imgNaturalSize.h;
+                  setCropHasWhiteSpace(oob);
+                }}
                 onZoomChange={setZoom}
               />
               {/* Snap guide lines */}
@@ -906,7 +942,7 @@ export default function App() {
               )}
             </div>
             <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-3">
-              {zoom < 0.99 && (
+              {cropHasWhiteSpace && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-medium animate-in fade-in duration-200">
                   <AlertCircle size={14} className="shrink-0 text-amber-400" />
                   <span>Image doesn't fill the circle — empty space will be filled with white background.</span>
