@@ -995,7 +995,7 @@ export default function App() {
                 onClick={async () => {
                   if (croppedAreaPixels && imageSrc) {
                     try {
-                      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, 'custom-crop.jpeg');
+                      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, 'custom-crop.png');
                       setCustomImageFile(croppedFile);
                       setIsCropping(false);
                     } catch (e) {
