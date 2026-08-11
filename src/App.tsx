@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, getImageUrl, type OrderDetails } from './lib/api';
 import { ShoppingCart, Plus, Minus, Trash2, Search, ArrowDownUp, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Copy, Check, X, Clock, Package, CreditCard, Upload, ExternalLink, QrCode, RefreshCw } from 'lucide-react';
@@ -18,6 +18,7 @@ export default function App() {
   const [customCatId, setCustomCatId] = useState<number | null>(null);
   const [customVarId, setCustomVarId] = useState<number | null>(null);
   const [customQty, setCustomQty] = useState<number>(1);
+  const [customQtyRaw, setCustomQtyRaw] = useState<string>('1');
   const [customImageFile, setCustomImageFile] = useState<File | null>(null);
   const [isAddingCustom, setIsAddingCustom] = useState(false);
   
@@ -29,6 +30,30 @@ export default function App() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
   const [snapped, setSnapped] = useState({ x: false, y: false });
+  const [imgNaturalSize, setImgNaturalSize] = useState({ w: 0, h: 0 });
+  const [cropHasWhiteSpace, setCropHasWhiteSpace] = useState(false);
+  // Stores the crop circle's size in screen pixels — derived in onCropComplete and used
+  // to recompute OOB status when crop/zoom change programmatically (button clicks).
+  const cropSizeScreenPxRef = useRef(0);
+
+  // Recompute whitespace whenever crop position, zoom, or image size changes.
+  // This fires even when buttons (Center / Reset / Fit) change state without a user drag.
+  useEffect(() => {
+    const S = cropSizeScreenPxRef.current;
+    if (S <= 0 || imgNaturalSize.w <= 0) return;
+    // Derive croppedAreaPixels from first principles:
+    //   capX = imgW/2 - S/(2*zoom) - crop.x/zoom
+    //   capY = imgH/2 - S/(2*zoom) - crop.y/zoom
+    //   capW = capH = S/zoom
+    const capW = S / zoom;
+    const capX = imgNaturalSize.w / 2 - S / (2 * zoom) - crop.x / zoom;
+    const capY = imgNaturalSize.h / 2 - S / (2 * zoom) - crop.y / zoom;
+    setCropHasWhiteSpace(
+      capX < 0 || capY < 0 ||
+      capX + capW > imgNaturalSize.w ||
+      capY + capW > imgNaturalSize.h
+    );
+  }, [crop, zoom, imgNaturalSize]);
 
   const SNAP_THRESHOLD = 1.5;
   const handleCropChange = (newCrop: { x: number; y: number }) => {
@@ -49,7 +74,16 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('a-z');
   
-  let filteredItems = items.filter(item => !item.isArchived && !item.isCustom);
+  let filteredItems = items.filter(item => {
+    if (item.isArchived || item.isCustom) return false;
+    // Hide items whose category uses variants but this item has no variant rows configured
+    // (i.e. all variants were removed in the editor)
+    const cat = categories.find(c => c.id === item.categoryId);
+    if (cat?.variants && cat.variants.length > 0 && (!item.variants || item.variants.length === 0)) {
+      return false;
+    }
+    return true;
+  });
   
   if (activeCategories.length > 0) {
     filteredItems = filteredItems.filter(item => activeCategories.includes(item.categoryId));
@@ -59,7 +93,21 @@ export default function App() {
     filteredItems = filteredItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }
 
+  // Helper: true if every variant (or the base stock) is 0
+  const isAllOutOfStock = (item: typeof items[0]) => {
+    if (item.variants && item.variants.length > 0) {
+      return item.variants.every(v => v.stock <= 0);
+    }
+    return item.stock <= 0;
+  };
+
   filteredItems.sort((a, b) => {
+    // Always push fully-out-of-stock items to the bottom
+    const aOos = isAllOutOfStock(a);
+    const bOos = isAllOutOfStock(b);
+    if (aOos !== bOos) return aOos ? 1 : -1;
+
+    // Within each group apply the user's chosen sort
     switch (sortBy) {
       case 'a-z': return a.name.localeCompare(b.name);
       case 'z-a': return b.name.localeCompare(a.name);
@@ -232,28 +280,61 @@ export default function App() {
         <div className={`flex-1 p-4 md:p-6 flex flex-col gap-5 md:gap-6 overflow-hidden transition-all duration-300 ${isCartExpanded ? 'md:mr-96' : ''}`}>
           
           {/* Filter Bar */}
-          <div className="flex flex-col lg:flex-row gap-3 pb-2 shrink-0 z-40 relative">
-            <button 
-              onClick={() => setIsCustomModalOpen(true)}
-              className="w-full lg:w-auto px-5 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-bold shadow-lg shadow-purple-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0 border border-white/10"
-            >
-              <Plus size={18} /> Custom Item Request
-            </button>
-            
-            <div className="flex gap-3 w-full lg:w-auto">
-              <div className="relative flex-1 lg:flex-none">
+          <div className="flex flex-col gap-2.5 pb-2 shrink-0 z-40 relative">
+            {/* Row 1: Custom Request (left) + Search (fills right) */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsCustomModalOpen(true)}
+                className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-bold shadow-lg shadow-purple-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0 border border-white/10"
+              >
+                <Plus size={18} />
+                <span className="whitespace-nowrap">Custom Request</span>
+              </button>
+
+              <div className="relative flex-1 group">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Search merchandise..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-zinc-900/80 backdrop-blur border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder-zinc-500 transition-all shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Sort (left) + Category filter (fills right) */}
+            <div className="flex gap-2">
+              {/* Sort — leftmost to avoid top-right toast overlap */}
+              <div className="relative shrink-0">
+                <ArrowDownUp className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={15} />
+                <select 
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value)}
+                  className="appearance-none bg-zinc-900/80 backdrop-blur border border-white/10 rounded-xl pl-9 pr-8 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500/50 cursor-pointer transition-all shadow-sm"
+                >
+                  <option value="a-z">A–Z</option>
+                  <option value="z-a">Z–A</option>
+                  <option value="price-asc">$ Low</option>
+                  <option value="price-desc">$ High</option>
+                </select>
+              </div>
+
+              <div className="relative flex-1">
                 <button 
                   onClick={() => setIsCatDropdownOpen(!isCatDropdownOpen)}
-                  className="w-full lg:w-56 px-4 py-3 bg-zinc-900/80 backdrop-blur border border-white/10 hover:border-white/20 rounded-xl text-sm font-medium text-white flex justify-between items-center gap-2 transition-all shadow-sm"
+                  className="w-full px-3.5 py-2.5 bg-zinc-900/80 backdrop-blur border border-white/10 hover:border-white/20 rounded-xl text-sm font-medium text-white flex justify-between items-center gap-2 transition-all shadow-sm"
                 >
-                  <span className="truncate">Categories {activeCategories.length > 0 ? `(${activeCategories.length})` : '(All)'}</span>
-                  {isCatDropdownOpen ? <ChevronUp size={16} className="text-zinc-400 shrink-0" /> : <ChevronDown size={16} className="text-zinc-400 shrink-0" />}
+                  <span className="truncate text-left">
+                    {activeCategories.length > 0 ? `Categories (${activeCategories.length})` : 'All Categories'}
+                  </span>
+                  {isCatDropdownOpen ? <ChevronUp size={15} className="text-zinc-400 shrink-0" /> : <ChevronDown size={15} className="text-zinc-400 shrink-0" />}
                 </button>
                 
                 {isCatDropdownOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setIsCatDropdownOpen(false)}></div>
-                    <div className="absolute top-full left-0 mt-2 w-full sm:w-56 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 z-20 max-h-64 overflow-y-auto">
+                    <div className="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 z-20 max-h-64 overflow-y-auto">
                       {categories.map((c: any) => (
                         <label key={c.id} className="flex items-center px-4 py-3 hover:bg-zinc-800 cursor-pointer text-sm text-zinc-200 transition-colors">
                           <input 
@@ -272,78 +353,11 @@ export default function App() {
                   </>
                 )}
               </div>
-
-              <div className="relative flex-1 lg:hidden">
-                <div className="w-full h-full flex items-center justify-between px-3 bg-zinc-900/80 backdrop-blur border border-white/10 rounded-xl text-white text-sm">
-                  <span className="truncate">Sort</span> <ArrowDownUp size={14} className="shrink-0 text-zinc-400" />
-                </div>
-                <select 
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value)}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                >
-                  <option value="a-z">Name (A-Z)</option>
-                  <option value="z-a">Name (Z-A)</option>
-                  <option value="price-asc">Price (Low-High)</option>
-                  <option value="price-desc">Price (High-Low)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative w-full lg:flex-1 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search merchandise..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-900/80 backdrop-blur border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder-zinc-500 transition-all shadow-sm"
-              />
-            </div>
-
-            <div className="relative shrink-0 hidden lg:block">
-              <ArrowDownUp className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-              <select 
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
-                className="w-full appearance-none bg-zinc-900/80 backdrop-blur border border-white/10 rounded-xl pl-11 pr-10 py-3 text-white text-sm focus:outline-none focus:border-blue-500/50 cursor-pointer transition-all shadow-sm"
-              >
-                <option value="a-z">Name (A-Z)</option>
-                <option value="z-a">Name (Z-A)</option>
-                <option value="price-asc">Price (Low-High)</option>
-                <option value="price-desc">Price (High-Low)</option>
-              </select>
             </div>
           </div>
 
         {/* Item Grid */}
-        <div className="flex-1 min-h-0 overflow-y-auto pb-32 md:pb-8 pr-2 no-scrollbar relative">
-          
-          {/* Floating Toasts (Absolute Upper Right overlay on top of items) */}
-          <div className="absolute top-2 right-2 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm w-full pointer-events-none">
-            {toasts.map(toast => (
-              <div
-                key={toast.id}
-                className={`pointer-events-auto flex items-center gap-3 p-3.5 rounded-2xl border shadow-2xl backdrop-blur-md animate-in slide-in-from-top-3 duration-200 text-xs sm:text-sm font-medium ${
-                  toast.type === 'success'
-                    ? 'bg-emerald-950/95 border-emerald-500/40 text-emerald-200'
-                    : toast.type === 'error'
-                    ? 'bg-red-950/95 border-red-500/40 text-red-200'
-                    : 'bg-zinc-900/95 border-white/15 text-zinc-200'
-                }`}
-              >
-                {toast.type === 'success' && <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />}
-                {toast.type === 'error' && <AlertCircle size={18} className="text-red-400 shrink-0" />}
-                <span className="flex-1 leading-snug">{toast.message}</span>
-                <button
-                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
+        <div className="flex-1 min-h-0 overflow-y-auto pb-32 md:pb-8 pr-2 no-scrollbar">
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
             {filteredItems.map(item => {
@@ -359,9 +373,9 @@ export default function App() {
                 <div key={item.id} className="group flex flex-col rounded-2xl bg-zinc-900/40 border border-white/5 hover:border-white/20 transition-all duration-300 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-1 overflow-hidden h-full">
                   <button
                     onClick={() => addToCart(item.id)}
-                    className="flex flex-col items-center p-3 sm:p-4 flex-1 focus:outline-none"
+                    className="flex flex-col items-center p-2.5 sm:p-4 flex-1 focus:outline-none active:bg-white/5 transition-colors"
                   >
-                    <div className="relative w-full aspect-square shrink-0 mb-4 rounded-xl overflow-hidden bg-zinc-950/80 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500 border border-white/5 isolate">
+                    <div className="relative w-full aspect-square shrink-0 mb-2.5 sm:mb-4 rounded-xl overflow-hidden bg-zinc-950/80 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500 border border-white/5 isolate">
                       <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md z-10 border border-white/10 max-w-[80%]">
                         <span className="text-[9px] font-bold text-zinc-300 uppercase tracking-wider truncate block">
                           {categories.find(c => c.id === item.categoryId)?.name || 'Merch'}
@@ -674,13 +688,35 @@ export default function App() {
 
                   <div>
                     <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Quantity</label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50"
-                      value={customQty}
-                      onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    />
+                    <div className="flex items-center bg-zinc-900 rounded-xl border border-white/10 shadow-inner overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => { const n = Math.max(1, customQty - 1); setCustomQty(n); setCustomQtyRaw(String(n)); }}
+                        className="px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800 active:bg-zinc-700 transition-colors text-lg font-bold shrink-0 select-none"
+                      >−</button>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className="flex-1 bg-transparent text-white text-center text-sm font-black focus:outline-none py-3 min-w-0"
+                        value={customQtyRaw}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          setCustomQtyRaw(raw);
+                          if (raw !== '') setCustomQty(Math.max(1, parseInt(raw)));
+                        }}
+                        onBlur={() => {
+                          const clamped = Math.max(1, parseInt(customQtyRaw) || 1);
+                          setCustomQty(clamped);
+                          setCustomQtyRaw(String(clamped));
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { const n = customQty + 1; setCustomQty(n); setCustomQtyRaw(String(n)); }}
+                        className="px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800 active:bg-zinc-700 transition-colors text-lg font-bold shrink-0 select-none"
+                      >+</button>
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-2">
@@ -708,16 +744,19 @@ export default function App() {
             {customStep === 3 && (
               <div className="flex flex-col gap-5">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Design Image (Optional)</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Design Image</label>
+                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Required</span>
+                  </div>
                   <div className="relative group">
                     {customImageFile ? (
-                      <div className="flex items-center gap-3 bg-zinc-950 border border-white/10 rounded-xl p-3">
+                      <div className="flex items-center gap-3 bg-zinc-950 border border-emerald-500/30 rounded-xl p-3">
                         <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10">
                           <img src={URL.createObjectURL(customImageFile)} alt="Preview" className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-white truncate font-medium">{customImageFile.name}</p>
-                          <p className="text-[10px] text-zinc-500">Ready for upload</p>
+                          <p className="text-[10px] text-emerald-400 font-medium">Ready for upload</p>
                         </div>
                         <button
                           onClick={() => setCustomImageFile(null)}
@@ -727,52 +766,80 @@ export default function App() {
                         </button>
                       </div>
                     ) : (
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="w-full text-sm text-zinc-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-zinc-800 file:text-purple-400 hover:file:bg-zinc-700 hover:file:text-purple-300 transition-all cursor-pointer bg-zinc-950 border border-white/10 rounded-xl"
-                        onChange={e => {
-                          if (e.target.files && e.target.files[0]) {
-                            const file = e.target.files[0];
-                            const cat = categories.find((c: any) => c.id === customCatId);
-                            if (cat?.requiresCircularCrop) {
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                const src = reader.result as string;
-                                // Compute fitZoom: zoom so the image diagonal equals the circle diameter
-                                // Formula: zoom = 1 / sqrt(1 + r²) where r = longSide/shortSide
-                                const img = new Image();
-                                img.onload = () => {
-                                  const r = Math.max(img.naturalWidth, img.naturalHeight) / Math.min(img.naturalWidth, img.naturalHeight);
-                                  setFitZoom(1 / Math.sqrt(1 + r * r));
+                      <label className="flex flex-col items-center justify-center gap-2 w-full py-6 px-4 bg-zinc-950 border-2 border-dashed border-purple-500/30 hover:border-purple-500/60 rounded-xl cursor-pointer transition-all group/upload">
+                        <Upload size={24} className="text-purple-400 group-hover/upload:scale-110 transition-transform" />
+                        <div className="text-center">
+                          <p className="text-sm font-bold text-white">Tap to choose your design</p>
+                          <p className="text-[11px] text-zinc-500 mt-0.5">PNG, JPG, or any image format</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              const file = e.target.files[0];
+                              const cat = categories.find((c: any) => c.id === customCatId);
+                              if (cat?.requiresCircularCrop) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  const src = reader.result as string;
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    const r = Math.max(img.naturalWidth, img.naturalHeight) / Math.min(img.naturalWidth, img.naturalHeight);
+                                    setFitZoom(1 / Math.sqrt(1 + r * r));
+                                    setImgNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+                                  };
+                                  img.src = src;
+                                  setImageSrc(src);
+                                  setIsCropping(true);
+                                  setCrop({ x: 0, y: 0 });
+                                  setZoom(1);
                                 };
-                                img.src = src;
-                                setImageSrc(src);
-                                setIsCropping(true);
-                                setCrop({ x: 0, y: 0 });
-                                setZoom(1);
-                              };
-                              reader.readAsDataURL(file);
-                              e.target.value = '';
-                            } else {
-                              setCustomImageFile(file);
+                                reader.readAsDataURL(file);
+                                e.target.value = '';
+                              } else {
+                                setCustomImageFile(file);
+                              }
                             }
-                          }
-                        }}
-                      />
+                          }}
+                        />
+                      </label>
                     )}
                   </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 block">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50"
-                    value={customQty}
-                    onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  />
+                  <div className="flex items-center bg-zinc-900 rounded-xl border border-white/10 shadow-inner overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => { const n = Math.max(1, customQty - 1); setCustomQty(n); setCustomQtyRaw(String(n)); }}
+                      className="px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800 active:bg-zinc-700 transition-colors text-lg font-bold shrink-0 select-none"
+                    >−</button>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="flex-1 bg-transparent text-white text-center text-sm font-black focus:outline-none py-3 min-w-0"
+                      value={customQtyRaw}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        setCustomQtyRaw(raw);
+                        if (raw !== '') setCustomQty(Math.max(1, parseInt(raw)));
+                      }}
+                      onBlur={() => {
+                        const clamped = Math.max(1, parseInt(customQtyRaw) || 1);
+                        setCustomQty(clamped);
+                        setCustomQtyRaw(String(clamped));
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { const n = customQty + 1; setCustomQty(n); setCustomQtyRaw(String(n)); }}
+                      className="px-4 py-3 text-zinc-400 hover:text-white hover:bg-zinc-800 active:bg-zinc-700 transition-colors text-lg font-bold shrink-0 select-none"
+                    >+</button>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -785,6 +852,7 @@ export default function App() {
                   <button
                     onClick={async () => {
                       if (!customCatId) return;
+                      if (!customImageFile) { showToast('Please upload a design image first', 'error'); return; }
                       const customItem = items.find((i: any) => i.categoryId === customCatId && i.isCustom);
                       if (customItem) {
                         setIsAddingCustom(true);
@@ -809,6 +877,7 @@ export default function App() {
                         setCustomCatId(null);
                         setCustomVarId(null);
                         setCustomQty(1);
+                        setCustomQtyRaw('1');
                         setCustomImageFile(null);
                         setIsAddingCustom(false);
                         setIsCartExpanded(true);
@@ -816,8 +885,8 @@ export default function App() {
                         showToast('Custom item not found for this category', 'error');
                       }
                     }}
-                    disabled={isAddingCustom}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2 border border-white/10"
+                    disabled={isAddingCustom || !customImageFile}
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-white text-sm font-black shadow-lg shadow-purple-900/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-white/10"
                   >
                     {isAddingCustom ? 'Processing...' : 'Add to Cart'}
                   </button>
@@ -850,7 +919,18 @@ export default function App() {
                 showGrid={false}
                 restrictPosition={false}
                 onCropChange={handleCropChange}
-                onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                onCropComplete={(_, cap) => {
+                  setCroppedAreaPixels(cap);
+                  // Store the crop circle size in screen pixels for use in the useEffect.
+                  cropSizeScreenPxRef.current = cap.width * zoom;
+                  // Warn if the crop circle extends outside the original image bounds in any direction
+                  const oob =
+                    cap.x < 0 ||
+                    cap.y < 0 ||
+                    cap.x + cap.width  > imgNaturalSize.w ||
+                    cap.y + cap.height > imgNaturalSize.h;
+                  setCropHasWhiteSpace(oob);
+                }}
                 onZoomChange={setZoom}
               />
               {/* Snap guide lines */}
@@ -862,7 +942,7 @@ export default function App() {
               )}
             </div>
             <div className="p-5 border-t border-white/10 bg-zinc-900/80 shrink-0 flex flex-col gap-3">
-              {zoom < 0.99 && (
+              {cropHasWhiteSpace && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-medium animate-in fade-in duration-200">
                   <AlertCircle size={14} className="shrink-0 text-amber-400" />
                   <span>Image doesn't fill the circle — empty space will be filled with white background.</span>
@@ -915,7 +995,7 @@ export default function App() {
                 onClick={async () => {
                   if (croppedAreaPixels && imageSrc) {
                     try {
-                      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, 'custom-crop.jpeg');
+                      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, 'custom-crop.png');
                       setCustomImageFile(croppedFile);
                       setIsCropping(false);
                     } catch (e) {
@@ -1445,6 +1525,36 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Toast Notifications — fixed at viewport level, top-right on desktop, above cart bar on mobile */}
+      <div
+        aria-live="polite"
+        aria-atomic="false"
+        className="fixed bottom-[calc(80px+env(safe-area-inset-bottom,0px))] md:bottom-auto md:top-[72px] right-3 md:right-6 z-[90] flex flex-col gap-2 max-w-[calc(100vw-1.5rem)] sm:max-w-sm w-full pointer-events-none"
+      >
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`pointer-events-auto flex items-center gap-3 p-3.5 rounded-2xl border shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3 md:slide-in-from-top-3 duration-200 text-xs sm:text-sm font-medium ${
+              toast.type === 'success'
+                ? 'bg-emerald-950/95 border-emerald-500/40 text-emerald-200'
+                : toast.type === 'error'
+                ? 'bg-red-950/95 border-red-500/40 text-red-200'
+                : 'bg-zinc-900/95 border-white/15 text-zinc-200'
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />}
+            {toast.type === 'error' && <AlertCircle size={18} className="text-red-400 shrink-0" />}
+            <span className="flex-1 leading-snug">{toast.message}</span>
+            <button
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
 
     </div>
   );
