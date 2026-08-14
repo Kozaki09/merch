@@ -83,6 +83,14 @@ export default function App() {
     if (cat?.variants && cat.variants.length > 0 && (!item.variants || item.variants.length === 0)) {
       return false;
     }
+    // If preorders are disabled (allowPreorder === false), hide out-of-stock items
+    const allowPreorder = item.allowPreorder ?? true;
+    if (!allowPreorder) {
+      const isOutOfStock = item.variants && item.variants.length > 0
+        ? item.variants.every(v => v.stock <= 0)
+        : item.stock <= 0;
+      if (isOutOfStock) return false;
+    }
     return true;
   });
   
