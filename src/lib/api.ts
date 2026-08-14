@@ -72,7 +72,7 @@ export const api = {
   getBundles: () => fetcher<Bundle[]>('/bundles'),
 
   previewCart: (cart: CartItem[]) => fetcher<{ totalAmount: number }>('/transactions/preview', { method: 'POST', body: JSON.stringify({ cart }) }),
-  checkout: (cart: CartItem[], isPreorder?: boolean, customerName?: string, notes?: string, isPrepaid?: boolean) => fetcher<{ success: boolean; totalAmount: number; orderNumber?: string }>('/transactions', { method: 'POST', body: JSON.stringify({ cart, isPreorder, customerName, notes, isPrepaid }) }),
+  checkout: (cart: CartItem[], isPreorder?: boolean, customerName?: string, notes?: string, isPrepaid?: boolean, idempotencyKey?: string) => fetcher<{ success: boolean; totalAmount: number; orderNumber?: string }>('/transactions', { method: 'POST', body: JSON.stringify({ cart, isPreorder, customerName, notes, isPrepaid, idempotencyKey }) }),
   
   lookupOrder: (orderNumber: string) => fetcher<OrderDetails>(`/transactions/lookup/${encodeURIComponent(orderNumber)}`),
   uploadReceipt: (orderNumber: string, receiptUrl: string) => fetcher<{ success: boolean; receiptUrl: string }>(`/transactions/lookup/${encodeURIComponent(orderNumber)}/receipt`, { method: 'POST', body: JSON.stringify({ receiptUrl }) }),
