@@ -7,7 +7,7 @@ export type ItemVariant = { id: number; itemId: number; variantId: number; stock
 export type Category = { id: number; name: string; requiresCircularCrop?: boolean; variants?: CategoryVariant[] };
 export type Item = { 
   id: number; categoryId: number; name: string; stock: number; price: number; 
-  imageUrl?: string; isArchived?: boolean; isDeletable?: boolean; isCustom?: boolean;
+  imageUrl?: string; isArchived?: boolean; isDeletable?: boolean; isCustom?: boolean; allowPreorder?: boolean;
   variants?: ItemVariant[]; tags?: Tag[];
 };
 export type Bundle = { id: number; categoryId: number; variantId?: number | null; requiredQuantity: number; bundlePrice: number };
