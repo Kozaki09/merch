@@ -35,6 +35,7 @@ export default function App() {
   // Stores the crop circle's size in screen pixels — derived in onCropComplete and used
   // to recompute OOB status when crop/zoom change programmatically (button clicks).
   const cropSizeScreenPxRef = useRef(0);
+  const idempotencyKeyRef = useRef('');
 
   // Recompute whitespace whenever crop position, zoom, or image size changes.
   // This fires even when buttons (Center / Reset / Fit) change state without a user drag.
@@ -188,8 +189,14 @@ export default function App() {
 
   const queryClient = useQueryClient();
   const checkoutMutation = useMutation({
-    mutationFn: () => api.checkout(cart, true, customerName, notes),
+    mutationFn: () => {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `key-${Date.now()}-${Math.random()}`;
+      }
+      return api.checkout(cart, true, customerName, notes, false, idempotencyKeyRef.current);
+    },
     onSuccess: (data) => {
+      idempotencyKeyRef.current = '';
       setCart([]);
       setCustomerName('');
       setNotes('');
@@ -789,6 +796,7 @@ export default function App() {
                                     const r = Math.max(img.naturalWidth, img.naturalHeight) / Math.min(img.naturalWidth, img.naturalHeight);
                                     setFitZoom(1 / Math.sqrt(1 + r * r));
                                     setImgNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+                                    cropSizeScreenPxRef.current = Math.min(img.naturalWidth, img.naturalHeight);
                                   };
                                   img.src = src;
                                   setImageSrc(src);
@@ -851,6 +859,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={async () => {
+                      if (isAddingCustom) return;
                       if (!customCatId) return;
                       if (!customImageFile) { showToast('Please upload a design image first', 'error'); return; }
                       const customItem = items.find((i: any) => i.categoryId === customCatId && i.isCustom);
