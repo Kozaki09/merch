@@ -154,6 +154,19 @@ export default function App() {
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [isQrExpanded, setIsQrExpanded] = useState(false);
 
+  const isAnyModalOpen = isCustomModalOpen || isCropping || !!completedOrder || isTrackOrderModalOpen || isQrExpanded;
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isAnyModalOpen]);
+
   const handleLookupOrder = async (orderNumToSearch?: string) => {
     const queryNum = (orderNumToSearch !== undefined ? orderNumToSearch : trackOrderInput).trim();
     if (!queryNum) {
@@ -268,7 +281,7 @@ export default function App() {
   const totalPrice = cart.length > 0 ? formatPrice(previewData?.totalAmount || 0) : '₱0.00';
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans relative">
+    <div className="flex flex-col h-screen h-[100dvh] bg-zinc-950 text-zinc-100 overflow-hidden font-sans relative">
       
       {/* Header */}
       <div className="w-full z-30 p-4 flex justify-between items-center bg-zinc-950/90 backdrop-blur-md border-b border-white/10 shrink-0 shadow-sm">
@@ -619,8 +632,8 @@ export default function App() {
       
       {/* Custom Item Modal */}
       {isCustomModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCustomModalOpen(false)}></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 isolate">
+          <div className="absolute inset-0 bg-black/75 sm:bg-black/60 sm:backdrop-blur-sm" onClick={() => setIsCustomModalOpen(false)}></div>
           <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-200">
             <div className="w-12 h-12 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center mb-4 border border-purple-500/20">
               <Plus size={24} strokeWidth={3} />
@@ -918,9 +931,9 @@ export default function App() {
 
       {/* Image Cropper Modal */}
       {isCropping && imageSrc && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setIsCropping(false)}></div>
-          <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl relative z-10 h-[75vh]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 isolate">
+          <div className="absolute inset-0 bg-black/90 sm:backdrop-blur-sm" onClick={() => setIsCropping(false)}></div>
+          <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl relative z-10 h-[75vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-white/10 shrink-0 bg-zinc-900/50">
               <h3 className="text-xl font-black text-white">Crop Design</h3>
               <p className="text-sm text-zinc-400 mt-1">Position your image within the circular guide to ensure it looks perfect on a pin.</p>
@@ -1033,8 +1046,8 @@ export default function App() {
 
       {/* Order Success Modal */}
       {completedOrder && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setCompletedOrder(null)}></div>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 isolate">
+          <div className="absolute inset-0 bg-black/80 sm:backdrop-blur-md" onClick={() => setCompletedOrder(null)}></div>
           <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-200">
             <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
               <CheckCircle2 size={36} strokeWidth={2.5} />
@@ -1088,10 +1101,10 @@ export default function App() {
 
       {/* Track Order Modal */}
       {isTrackOrderModalOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsTrackOrderModalOpen(false)}></div>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 isolate">
+          <div className="absolute inset-0 bg-black/80 sm:backdrop-blur-md" onClick={() => setIsTrackOrderModalOpen(false)}></div>
           
-          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl relative z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-zinc-950/50 shrink-0">
               <div className="flex items-center gap-3">
@@ -1472,10 +1485,10 @@ export default function App() {
 
       {/* Expanded QR Modal */}
       {isQrExpanded && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setIsQrExpanded(false)}></div>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 isolate">
+          <div className="absolute inset-0 bg-black/90 sm:backdrop-blur-md" onClick={() => setIsQrExpanded(false)}></div>
           
-          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md p-6 flex flex-col items-center gap-5 shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 text-center">
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md p-6 flex flex-col items-center gap-5 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-200 text-center">
             
             {/* Header */}
             <div className="w-full flex justify-between items-center border-b border-white/10 pb-3">
